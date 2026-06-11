@@ -54,6 +54,19 @@ def create_app() -> Flask:
     app.register_blueprint(audit_bp)
     app.register_blueprint(visualization_bp)
 
+    @app.cli.command("init-db")
+    def init_db() -> None:
+        """Create any missing tables (idempotent, matches models exactly)."""
+        db.create_all()
+        print("init-db: tables ensured")
+
+    @app.cli.command("reset-db")
+    def reset_db() -> None:
+        """DROP and recreate all tables. Destructive — only for first deploy."""
+        db.drop_all()
+        db.create_all()
+        print("reset-db: all tables dropped and recreated")
+
     @app.cli.command("seed-admin")
     def seed_admin() -> None:
         from werkzeug.security import generate_password_hash
