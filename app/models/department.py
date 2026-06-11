@@ -8,7 +8,7 @@ class Department(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False, unique=True, index=True)
-    short_description = db.Column(db.String(300))
+    short_description = db.Column(db.Text)
     full_description = db.Column(db.Text)
     functions = db.Column(db.Text)
     department_type_id = db.Column(db.Integer, db.ForeignKey("department_types.id", ondelete="SET NULL"))

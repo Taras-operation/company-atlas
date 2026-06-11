@@ -11,7 +11,7 @@ class Person(db.Model):
     position = db.Column(db.String(150))
     grade = db.Column(db.String(30), default="junior", nullable=False)
     avatar = db.Column(db.String(500))
-    short_description = db.Column(db.String(300))
+    short_description = db.Column(db.Text)
     responsibility_area = db.Column(db.Text)
 
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id", ondelete="SET NULL"))

@@ -76,6 +76,29 @@ def create_app() -> Flask:
         db.create_all()
         print("reset-db: all tables dropped and recreated")
 
+    @app.cli.command("patch-schema")
+    def patch_schema() -> None:
+        """Idempotent column-type fixes for existing Postgres tables."""
+        from sqlalchemy import text
+
+        engine = db.engine
+        if engine.dialect.name != "postgresql":
+            print("patch-schema: skipped (not postgres)")
+            return
+
+        statements = [
+            "ALTER TABLE departments ALTER COLUMN short_description TYPE TEXT",
+            "ALTER TABLE people ALTER COLUMN short_description TYPE TEXT",
+            "ALTER TABLE department_relations ALTER COLUMN short_description TYPE TEXT",
+        ]
+        with engine.begin() as conn:
+            for stmt in statements:
+                try:
+                    conn.execute(text(stmt))
+                except Exception as exc:  # noqa: BLE001
+                    print(f"patch-schema: skip ({exc})")
+        print("patch-schema: done")
+
     @app.cli.command("seed-admin")
     def seed_admin() -> None:
         from werkzeug.security import generate_password_hash

@@ -38,7 +38,7 @@ class DepartmentRelation(db.Model):
     status = db.Column(db.String(30), default="active", nullable=False)
     # active / draft / paused
 
-    short_description = db.Column(db.String(300))
+    short_description = db.Column(db.Text)
     full_description = db.Column(db.Text)
     notes = db.Column(db.Text)
 
