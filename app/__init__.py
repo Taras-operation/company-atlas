@@ -63,7 +63,16 @@ def create_app() -> Flask:
     @app.cli.command("reset-db")
     def reset_db() -> None:
         """DROP and recreate all tables. Destructive — only for first deploy."""
-        db.drop_all()
+        from sqlalchemy import text
+
+        engine = db.engine
+        if engine.dialect.name == "postgresql":
+            # Raw schema drop avoids circular-FK sort issues with drop_all()
+            with engine.begin() as conn:
+                conn.execute(text("DROP SCHEMA public CASCADE"))
+                conn.execute(text("CREATE SCHEMA public"))
+        else:
+            db.drop_all()
         db.create_all()
         print("reset-db: all tables dropped and recreated")
 
