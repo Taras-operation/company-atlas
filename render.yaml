@@ -11,7 +11,7 @@ services:
     plan: free
     region: oregon
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "flask --app wsgi.py reset-db && flask --app wsgi.py seed-admin && gunicorn wsgi:app"
+    startCommand: "flask --app wsgi.py init-db && flask --app wsgi.py seed-admin && gunicorn wsgi:app"
     envVars:
       - key: SECRET_KEY
         generateValue: true
