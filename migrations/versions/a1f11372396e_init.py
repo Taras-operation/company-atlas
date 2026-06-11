@@ -29,8 +29,6 @@ def upgrade():
     sa.Column('last_login_at', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['department_id'], ['departments.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['person_id'], ['people.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('person_id')
     )
@@ -122,6 +120,13 @@ def upgrade():
     )
     with op.batch_alter_table('people', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_people_full_name'), ['full_name'], unique=False)
+
+    # Deferred FKs for admin_users (circular dependency with departments/people).
+    # SQLite cannot ALTER-ADD constraints; it also doesn't strictly enforce FKs,
+    # so we only add them on real databases (Postgres etc.).
+    if op.get_bind().dialect.name != 'sqlite':
+        op.create_foreign_key('fk_admin_users_department_id', 'admin_users', 'departments', ['department_id'], ['id'], ondelete='SET NULL')
+        op.create_foreign_key('fk_admin_users_person_id', 'admin_users', 'people', ['person_id'], ['id'], ondelete='SET NULL')
 
     op.create_table('relation_types',
     sa.Column('id', sa.Integer(), nullable=False),
