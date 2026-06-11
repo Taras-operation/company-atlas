@@ -1,6 +1,6 @@
 databases:
   - name: company-crm-db
-    plan: free
+    plan: basic-256mb
     databaseName: company_crm
     user: company_crm
 
@@ -8,7 +8,7 @@ services:
   - type: web
     name: company-crm
     runtime: python
-    plan: free
+    plan: starter
     region: oregon
     buildCommand: "pip install -r requirements.txt"
     startCommand: "flask --app wsgi.py init-db && flask --app wsgi.py seed-admin && gunicorn wsgi:app"
