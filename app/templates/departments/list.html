@@ -78,9 +78,14 @@
         <td>
           {% set leaders = item.effective_leaders() %}
           {% if leaders %}
-            {% for lead in leaders %}
-              {{ lead.person.full_name }}{% if lead.inherited %} <span class="badge badge-gray" title="Успадковано від {{ lead.source }}">↑ {{ lead.source }}</span>{% endif %}{% if not loop.last %}, {% endif %}
-            {% endfor %}
+            <div class="leaders-cell">
+              {% for lead in leaders %}
+                <div class="leader-item">
+                  <span>{{ lead.person.full_name }}</span>
+                  {% if lead.inherited %}<span class="leader-inherited" title="Успадковано від {{ lead.source }}">↑ {{ lead.source }}</span>{% endif %}
+                </div>
+              {% endfor %}
+            </div>
           {% else %}—{% endif %}
         </td>
       </tr>
