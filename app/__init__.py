@@ -90,6 +90,7 @@ def create_app() -> Flask:
             "ALTER TABLE departments ALTER COLUMN short_description TYPE TEXT",
             "ALTER TABLE people ALTER COLUMN short_description TYPE TEXT",
             "ALTER TABLE department_relations ALTER COLUMN short_description TYPE TEXT",
+            "ALTER TABLE people ALTER COLUMN email TYPE TEXT",
         ]
         with engine.begin() as conn:
             for stmt in statements:

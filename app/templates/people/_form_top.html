@@ -10,8 +10,51 @@
 
 <div class="field">
   <label>Email</label>
-  <input type="email" name="email" value="{{ person.email if person else '' }}">
+  <div id="email_list">
+    {% set email_values = (person.email.split('\n') if person and person.email else ['']) %}
+    {% for em in email_values %}
+      <div class="email-row" style="display:flex; gap:8px; margin-bottom:6px;">
+        <input type="email" name="email" value="{{ em }}" placeholder="email@example.com" style="flex:1;">
+        <button type="button" class="btn btn-secondary btn-sm email-remove" title="Прибрати" style="flex:0 0 auto;">×</button>
+      </div>
+    {% endfor %}
+  </div>
+  <button type="button" class="link-btn" id="email_add">+ Додати email</button>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const list = document.getElementById("email_list");
+    const addBtn = document.getElementById("email_add");
+    if (!list || !addBtn) return;
+
+    function makeRow(value) {
+      const row = document.createElement("div");
+      row.className = "email-row";
+      row.style.cssText = "display:flex; gap:8px; margin-bottom:6px;";
+      row.innerHTML = '<input type="email" name="email" placeholder="email@example.com" style="flex:1;">' +
+        '<button type="button" class="btn btn-secondary btn-sm email-remove" title="Прибрати" style="flex:0 0 auto;">×</button>';
+      row.querySelector("input").value = value || "";
+      return row;
+    }
+
+    addBtn.addEventListener("click", function () {
+      list.appendChild(makeRow(""));
+    });
+
+    list.addEventListener("click", function (e) {
+      if (e.target.classList.contains("email-remove")) {
+        const rows = list.querySelectorAll(".email-row");
+        if (rows.length > 1) {
+          e.target.closest(".email-row").remove();
+        } else {
+          // keep at least one row, just clear it
+          e.target.closest(".email-row").querySelector("input").value = "";
+        }
+      }
+    });
+  });
+</script>
 
 <div class="field">
   <label>Reddy</label>

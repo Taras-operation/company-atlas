@@ -35,7 +35,13 @@
 
     <p><strong>Ім’я:</strong> {{ person.full_name }}</p>
     <p><strong>Telegram:</strong> {{ person.telegram or "—" }}</p>
-    <p><strong>Email:</strong> {{ person.email or "—" }}</p>
+    <p><strong>Email:</strong>
+      {% if person.email %}
+        {% for em in person.email.split('\n') %}
+          <a href="mailto:{{ em }}">{{ em }}</a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      {% else %}—{% endif %}
+    </p>
     <p><strong>Reddy:</strong> {{ person.phone or "—" }}</p>
     <p><strong>Відділ:</strong> {{ person.department.name if person.department else "—" }}</p>
     <p><strong>Посада:</strong> {{ person.position or "—" }}</p>

@@ -100,6 +100,19 @@ def _checkbox(name):
     return bool(request.form.get(name))
 
 
+def _collect_emails():
+    """Collect one or more email inputs (name="email") into a newline-separated string."""
+    emails = [e.strip() for e in request.form.getlist("email") if e and e.strip()]
+    # de-duplicate, keep order
+    seen = set()
+    unique = []
+    for e in emails:
+        if e.lower() not in seen:
+            seen.add(e.lower())
+            unique.append(e)
+    return "\n".join(unique) or None
+
+
 def _collect_visibility_payload():
     return {
         "grade": request.form.get("grade") or "junior",
@@ -310,7 +323,7 @@ def create_person():
             position=request.form.get("position") or None,
             department_id=department_id,
             manager_id=manager_id,
-            email=request.form.get("email") or None,
+            email=_collect_emails(),
             telegram=request.form.get("telegram") or None,
             phone=request.form.get("phone") or None,
             responsibility_area=request.form.get("responsibility_area") or None,
@@ -412,7 +425,7 @@ def edit_person(person_id):
         person.position = request.form.get("position") or None
         person.department_id = department_id
         person.manager_id = manager_id
-        person.email = request.form.get("email") or None
+        person.email = _collect_emails()
         person.telegram = request.form.get("telegram") or None
         person.phone = request.form.get("phone") or None
         person.responsibility_area = request.form.get("responsibility_area") or None

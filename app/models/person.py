@@ -17,7 +17,7 @@ class Person(db.Model):
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id", ondelete="SET NULL"))
     manager_id = db.Column(db.Integer, db.ForeignKey("people.id", ondelete="SET NULL"))
 
-    email = db.Column(db.String(255))
+    email = db.Column(db.Text)  # may hold multiple emails (newline-separated)
     telegram = db.Column(db.String(255))
     phone = db.Column(db.String(100))
     notes = db.Column(db.Text)

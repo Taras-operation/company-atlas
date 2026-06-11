@@ -90,7 +90,15 @@ def list_departments():
 
     page = request.args.get("page", 1, type=int)
     pagination = query.order_by(Department.name.asc()).paginate(page=page, per_page=25, error_out=False)
-    return render_template("departments/list.html", items=pagination.items, pagination=pagination)
+    total_brands = Brand.query.count()
+    total_geos = Geo.query.count()
+    return render_template(
+        "departments/list.html",
+        items=pagination.items,
+        pagination=pagination,
+        total_brands=total_brands,
+        total_geos=total_geos,
+    )
 
 
 @departments_bp.route("/create", methods=["GET", "POST"])

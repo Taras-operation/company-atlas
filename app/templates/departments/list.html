@@ -36,18 +36,44 @@
         <td>{{ item.department_type.name if item.department_type else "—" }}</td>
         <td>{{ item.size_label or "—" }}</td>
         <td>
-          {% for link in item.brand_links %}
-            {{ link.brand.name }}{% if not loop.last %}, {% endif %}
-          {% else %}
+          {% set bcount = item.brand_links|length %}
+          {% if bcount == 0 %}
             —
-          {% endfor %}
+          {% elif total_brands > 0 and bcount == total_brands %}
+            <span class="badge badge-blue">ALL</span>
+          {% elif bcount > 3 %}
+            <details class="expand-list">
+              <summary>
+                {% for link in item.brand_links[:3] %}{{ link.brand.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                <span class="expand-more">+{{ bcount - 3 }}</span>
+              </summary>
+              <div class="expand-rest">
+                {% for link in item.brand_links[3:] %}{{ link.brand.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+              </div>
+            </details>
+          {% else %}
+            {% for link in item.brand_links %}{{ link.brand.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+          {% endif %}
         </td>
         <td>
-          {% for link in item.geo_links %}
-            {{ link.geo.name }}{% if not loop.last %}, {% endif %}
-          {% else %}
+          {% set gcount = item.geo_links|length %}
+          {% if gcount == 0 %}
             —
-          {% endfor %}
+          {% elif total_geos > 0 and gcount == total_geos %}
+            <span class="badge badge-blue">ALL</span>
+          {% elif gcount > 3 %}
+            <details class="expand-list">
+              <summary>
+                {% for link in item.geo_links[:3] %}{{ link.geo.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                <span class="expand-more">+{{ gcount - 3 }}</span>
+              </summary>
+              <div class="expand-rest">
+                {% for link in item.geo_links[3:] %}{{ link.geo.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+              </div>
+            </details>
+          {% else %}
+            {% for link in item.geo_links %}{{ link.geo.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+          {% endif %}
         </td>
         <td>
           {% for link in item.lead_links %}
