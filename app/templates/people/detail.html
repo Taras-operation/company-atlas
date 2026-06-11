@@ -152,7 +152,9 @@
 
   <div class="card full-width">
     <h2>Зона відповідальності</h2>
-    <p>{{ person.responsibility_area or "—" }}</p>
+    <div class="rich-content">
+      {% if person.responsibility_area %}{{ person.responsibility_area|safe }}{% else %}—{% endif %}
+    </div>
   </div>
 </div>
 {% endblock %}

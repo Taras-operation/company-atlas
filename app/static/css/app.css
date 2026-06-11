@@ -475,3 +475,51 @@ select[multiple] {
 .badge-gray  { background: #f3f4f6; color: #374151; }
 .badge-blue  { background: #dbeafe; color: #1e40af; }
 .badge-orange{ background: #fff7ed; color: #9a3412; }
+
+/* Rich text editor (Quill) */
+.rich-editor {
+  background: #fff;
+  border-radius: 0 0 8px 8px;
+  /* Resizable content area */
+  resize: vertical;
+  overflow: auto;
+  height: 140px;        /* default height, draggable */
+  min-height: 90px;
+}
+.rich-editor-tall {
+  height: 240px;
+}
+.ql-toolbar.ql-snow {
+  border-radius: 8px 8px 0 0;
+  border-color: #d1d5db;
+}
+.ql-container.ql-snow {
+  border-color: #d1d5db;
+  font-size: 14px;
+}
+/* Let the inner editor fill the resizable container */
+.rich-editor .ql-editor {
+  min-height: 100%;
+}
+/* Rendered rich content (detail pages) */
+.rich-content { line-height: 1.6; }
+.rich-content p { margin: 0 0 8px; }
+.rich-content ul, .rich-content ol { margin: 0 0 8px; padding-left: 22px; }
+
+/* Sidebar visualization button */
+.sidebar-viz {
+  margin-top: 10px;
+  background: rgba(59,130,246,0.15) !important;
+  color: #93c5fd !important;
+  font-weight: 700 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid rgba(59,130,246,0.3);
+}
+.sidebar-viz:hover {
+  background: rgba(59,130,246,0.25) !important;
+  color: #fff !important;
+}
+.sidebar-viz-ext { font-size: 12px; opacity: 0.7; }
+.sidebar-logout { margin-top: 4px; color: #6b7280 !important; }

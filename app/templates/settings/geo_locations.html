@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header"><h1>GEO Locations</h1></div>
+<div class="page-header"><h1>Country</h1></div>
 
 <div class="card">
   <form method="post" class="form-grid">
     <div class="field">
-      <label>GEO</label>
+      <label>GEO Group</label>
       <select name="geo_id" required>
         <option value="">-- Обрати --</option>
         {% for item in geos %}
@@ -16,18 +16,11 @@
     </div>
 
     <div class="field">
-      <label>Назва</label>
+      <label>Назва країни</label>
       <input type="text" name="name" required>
     </div>
 
-    <div class="field">
-      <label>Тип</label>
-      <select name="location_type" required>
-        <option value="country">country</option>
-        <option value="city">city</option>
-        <option value="market">market</option>
-      </select>
-    </div>
+    <input type="hidden" name="location_type" value="country">
 
     <div class="field full">
       <label>Опис</label>

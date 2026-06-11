@@ -1,0 +1,7 @@
+
+/* Rich text (HTML from Quill) inside dark visualization panels */
+.rich-text p { margin: 0 0 8px; }
+.rich-text p:last-child { margin-bottom: 0; }
+.rich-text ul, .rich-text ol { margin: 0 0 8px; padding-left: 20px; }
+.rich-text a { color: #60A5FA; }
+.rich-text strong { color: inherit; font-weight: 700; }

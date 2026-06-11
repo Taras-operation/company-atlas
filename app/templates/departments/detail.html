@@ -27,22 +27,15 @@
   <div class="card">
     <h2>Загальне</h2>
 
-    <p><strong>Короткий опис:</strong> {{ department.short_description or "—" }}</p>
+    <div><strong>Короткий опис:</strong></div>
+    <div class="rich-content" style="margin:6px 0 14px;">
+      {% if department.short_description %}{{ department.short_description|safe }}{% else %}—{% endif %}
+    </div>
 
-    <p>
-      <strong>Повний опис та функціональність:</strong>
-      {% if department.full_description %}
-        <span id="full-description-preview">
-          {{ department.full_description[:280] }}{% if department.full_description|length > 280 %}...{% endif %}
-        </span>
-        <span id="full-description-full" class="hidden">{{ department.full_description }}</span>
-        {% if department.full_description|length > 280 %}
-          <button type="button" class="link-btn inline-btn" id="toggle-description-btn" onclick="toggleDescription()">Детальніше</button>
-        {% endif %}
-      {% else %}
-        —
-      {% endif %}
-    </p>
+    <div><strong>Повний опис та функціональність:</strong></div>
+    <div class="rich-content" style="margin:6px 0 0;">
+      {% if department.full_description %}{{ department.full_description|safe }}{% else %}—{% endif %}
+    </div>
 
     <p><strong>Тип:</strong> {{ department.department_type.name if department.department_type else "—" }}</p>
     <p><strong>Розмір:</strong> {{ department.size_label or "—" }}</p>

@@ -2256,9 +2256,15 @@ function App() {
                   {/* Description */}
                   <section style={{ borderRadius: 14, border: '1px solid rgba(30,41,59,0.9)', background: 'rgba(15,23,42,0.6)', padding: 14 }}>
                     <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#475569', marginBottom: 8, fontWeight: 700 }}>Опис</div>
-                    <p style={{ margin: 0, color: '#94A3B8', fontSize: 13, lineHeight: '20px' }}>
-                      {selectedDepartment.short_description || <span style={{ color: '#334155', fontStyle: 'italic' }}>Не заповнено</span>}
-                    </p>
+                    {selectedDepartment.short_description ? (
+                      <div
+                        className="rich-text"
+                        style={{ margin: 0, color: '#94A3B8', fontSize: 13, lineHeight: '20px' }}
+                        dangerouslySetInnerHTML={{ __html: selectedDepartment.short_description }}
+                      />
+                    ) : (
+                      <p style={{ margin: 0, color: '#334155', fontSize: 13, fontStyle: 'italic' }}>Не заповнено</p>
+                    )}
                     {!isPublicView && (
                       <button
                         onClick={() => setIsFullCardOpen(true)}
@@ -2483,18 +2489,21 @@ function App() {
                     Повна інформація та функціонал
                   </div>
 
-                  <div
-                    style={{
-                      color: '#CBD5E1',
-                      fontSize: 15,
-                      lineHeight: '28px',
-                      whiteSpace: 'pre-wrap',
-                      maxHeight: isDepartmentInfoExpanded ? 'none' : 180,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {selectedDepartment.full_description || selectedDepartment.short_description || <span style={{ color: '#475569', fontStyle: 'italic' }}>Повна інформація ще не заповнена.</span>}
-                  </div>
+                  {(selectedDepartment.full_description || selectedDepartment.short_description) ? (
+                    <div
+                      className="rich-text"
+                      style={{
+                        color: '#CBD5E1',
+                        fontSize: 15,
+                        lineHeight: '28px',
+                        maxHeight: isDepartmentInfoExpanded ? 'none' : 180,
+                        overflow: 'hidden',
+                      }}
+                      dangerouslySetInnerHTML={{ __html: selectedDepartment.full_description || selectedDepartment.short_description }}
+                    />
+                  ) : (
+                    <div style={{ color: '#475569', fontStyle: 'italic', fontSize: 15 }}>Повна інформація ще не заповнена.</div>
+                  )}
 
                   {(selectedDepartment.full_description || selectedDepartment.short_description || '').length > 420 && (
                     <button
@@ -3123,8 +3132,8 @@ function App() {
                   Зона відповідальності
                 </div>
 
-                <div style={{ color: '#CBD5E1', fontSize: 14, lineHeight: '24px', whiteSpace: 'pre-wrap' }}>
-                  {selectedPerson.responsibility_area ||
+                {(() => {
+                  const ra = selectedPerson.responsibility_area ||
                     selectedPerson.area_of_responsibility ||
                     selectedPerson.responsibility_zone ||
                     selectedPerson.responsibilities ||
@@ -3134,9 +3143,17 @@ function App() {
                     selectedPerson.user?.responsibility_zone ||
                     selectedPerson.user?.responsibilities ||
                     selectedPerson.user?.functional_responsibilities ||
-                    selectedPerson.notes ||
-                    'Функціональні обов\'язки поки не заповнені.'}
-                </div>
+                    selectedPerson.notes
+                  return ra ? (
+                    <div
+                      className="rich-text"
+                      style={{ color: '#CBD5E1', fontSize: 14, lineHeight: '24px' }}
+                      dangerouslySetInnerHTML={{ __html: ra }}
+                    />
+                  ) : (
+                    <div style={{ color: '#475569', fontSize: 14, fontStyle: 'italic' }}>Функціональні обов'язки поки не заповнені.</div>
+                  )
+                })()}
               </section>
             </div>
           </div>

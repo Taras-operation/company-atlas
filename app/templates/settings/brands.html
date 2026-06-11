@@ -8,8 +8,8 @@
 <div class="card">
   <h3 style="margin-top:0">Редагувати: {{ edit_item.name }}</h3>
   <form method="post" action="{{ url_for('settings.edit_brand', item_id=edit_item.id) }}" class="form-grid">
-    <div class="field"><label>Назва</label><input type="text" name="name" value="{{ edit_item.name }}" required></div>
-    <div class="field full"><label>Опис</label><textarea name="description" rows="2">{{ edit_item.description or '' }}</textarea></div>
+    <div class="field"><label>Коротка назва</label><input type="text" name="name" value="{{ edit_item.name }}" required></div>
+    <div class="field"><label>Повна назва</label><input type="text" name="description" value="{{ edit_item.description or '' }}"></div>
     <div class="actions full">
       <button class="btn btn-primary" type="submit">Зберегти</button>
       <a href="{{ url_for('settings.brands') }}" class="btn btn-secondary">Скасувати</a>
@@ -19,8 +19,8 @@
 {% else %}
 <div class="card">
   <form method="post" class="form-grid">
-    <div class="field"><label>Назва</label><input type="text" name="name" required></div>
-    <div class="field full"><label>Опис</label><textarea name="description" rows="2"></textarea></div>
+    <div class="field"><label>Коротка назва</label><input type="text" name="name" required></div>
+    <div class="field"><label>Повна назва</label><input type="text" name="description"></div>
     <div class="actions"><button class="btn btn-primary" type="submit">Додати</button></div>
   </form>
 </div>
@@ -28,7 +28,7 @@
 
 <div class="card">
   <table class="table">
-    <thead><tr><th>Назва</th><th>Опис</th><th>Відділів</th><th></th></tr></thead>
+    <thead><tr><th>Коротка назва</th><th>Повна назва</th><th>Відділів</th><th></th></tr></thead>
     <tbody>
       {% for item in items %}
       <tr>

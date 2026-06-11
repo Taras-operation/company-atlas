@@ -97,7 +97,8 @@
 
 <div class="field full">
   <label>Зона відповідальності</label>
-  <textarea name="responsibility_area" rows="4">{{ person.responsibility_area if person else '' }}</textarea>
+  <div class="rich-editor rich-editor-tall" data-target="responsibility_area">{{ person.responsibility_area|safe if person and person.responsibility_area else '' }}</div>
+  <textarea name="responsibility_area" style="display:none">{{ person.responsibility_area if person else '' }}</textarea>
 </div>
 
 <script>
@@ -180,27 +181,8 @@
     });
   }
 
-  function toggleSelectedBlocks() {
-    const brandScope = document.getElementById("brand_scope");
-    const geoScope = document.getElementById("geo_scope");
-    const departmentScope = document.getElementById("department_scope");
-
-    const brandBlock = document.getElementById("visibility_brand_block");
-    const geoBlock = document.getElementById("visibility_geo_block");
-    const departmentBlock = document.getElementById("visibility_department_block");
-
-    if (brandBlock && brandScope) {
-      brandBlock.style.display = brandScope.value === "selected" ? "block" : "none";
-    }
-
-    if (geoBlock && geoScope) {
-      geoBlock.style.display = geoScope.value === "selected" ? "block" : "none";
-    }
-
-    if (departmentBlock && departmentScope) {
-      departmentBlock.style.display = departmentScope.value === "selected" ? "block" : "none";
-    }
-  }
+  // NOTE: visibility blocks (brands/geo/departments) are handled entirely by
+  // the script in _form_visibility.html (show/hide + TomSelect enable/disable).
 
   function applyAccessPreset() {
     const access = document.getElementById("department_card_access")?.value;
@@ -261,7 +243,6 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    toggleSelectedBlocks();
     applyGradeRules();
     filterManagersByDepartment();
     rememberInitialCheckboxState();
@@ -271,11 +252,6 @@
     if (personDepartmentSelect) {
       personDepartmentSelect.addEventListener("change", filterManagersByDepartment);
     }
-
-    ["brand_scope", "geo_scope", "department_scope"].forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener("change", toggleSelectedBlocks);
-    });
 
     const accessSelect = document.getElementById("department_card_access");
     if (accessSelect) {

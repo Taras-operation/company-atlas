@@ -275,8 +275,20 @@
       const shouldShow = select.value === "selected";
       block.classList.toggle("is-hidden", !shouldShow);
 
+      // Enable/disable the native fields (skip the ones TomSelect manages —
+      // those are controlled via the TomSelect instance below).
       block.querySelectorAll("select, input").forEach(function (field) {
+        if (field.classList.contains("js-multi-select")) return;
         field.disabled = !shouldShow;
+      });
+
+      block.querySelectorAll(".js-multi-select").forEach(function (el) {
+        if (shouldShow) {
+          if (!el.tomselect && window.initMultiSelect) window.initMultiSelect(el);
+          if (el.tomselect) el.tomselect.enable();
+        } else if (el.tomselect) {
+          el.tomselect.disable();
+        }
       });
     }
 

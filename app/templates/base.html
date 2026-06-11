@@ -6,6 +6,7 @@
   <title>{% block title %}CRM Structure{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+  <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
   {% block head %}{% endblock %}
   <style>
     .btn,
@@ -94,18 +95,88 @@
 
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    // Init a single multi-select (safe to call repeatedly; skips if already done).
+    window.initMultiSelect = function (el) {
+      if (!el || el.tomselect) return;
+      const allowSelectAll = el.dataset.selectAll !== undefined;
+      const config = {
+        plugins: ['remove_button'],
+        create: false,
+        persist: false,
+        maxOptions: 500,
+        hidePlaceholder: true,
+        placeholder: el.dataset.placeholder || 'Оберіть значення',
+        closeAfterSelect: false,
+        onItemAdd: function (value) {
+          if (value === '__ALL__') {
+            const values = Object.keys(this.options).filter(function (v) { return v !== '__ALL__'; });
+            this.removeItem('__ALL__', true);
+            values.forEach((v) => this.addItem(v, true));
+            this.refreshItems();
+            const self = this;
+            setTimeout(function () { self.close(); self.blur(); }, 0);
+          }
+        },
+      };
+      // Keep "Обрати всі" pinned to the top.
+      if (allowSelectAll) {
+        config.sortField = [{ field: '$order', direction: 'asc' }];
+      }
+      const ts = new TomSelect(el, config);
+      if (allowSelectAll) {
+        ts.addOption({ value: '__ALL__', text: '✓ Обрати всі', $order: -1 });
+        ts.refreshOptions(false);
+      }
+    };
+
+    // Init all multi-selects that are currently visible. Hidden ones are
+    // initialized lazily when their container is shown (see form scripts).
+    window.initVisibleMultiSelects = function () {
       document.querySelectorAll('.js-multi-select').forEach(function (el) {
         if (el.tomselect) return;
-        new TomSelect(el, {
-          plugins: ['remove_button'],
-          create: false,
-          persist: false,
-          maxOptions: 500,
-          hidePlaceholder: true,
-          placeholder: el.dataset.placeholder || 'Оберіть значення',
-          closeAfterSelect: false,
+        if (el.offsetParent === null) return; // hidden — init later on reveal
+        window.initMultiSelect(el);
+      });
+    };
+
+    document.addEventListener('DOMContentLoaded', window.initVisibleMultiSelects);
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const toolbar = [
+        [{ font: [] }, { size: [] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ color: [] }, { background: [] }],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        [{ align: [] }],
+        ['link'],
+        ['clean'],
+      ];
+
+      document.querySelectorAll('.rich-editor').forEach(function (el) {
+        const targetName = el.dataset.target;
+        const textarea = document.querySelector('textarea[name="' + targetName + '"]');
+        if (!textarea) return;
+
+        const quill = new Quill(el, {
+          theme: 'snow',
+          modules: { toolbar: toolbar },
+          placeholder: 'Введіть текст...',
         });
+
+        // Initial content already in el (server-rendered HTML) is picked up by Quill.
+        // Keep the hidden textarea in sync on every change.
+        const sync = function () {
+          const html = quill.getText().trim().length ? quill.root.innerHTML : '';
+          textarea.value = html;
+        };
+        quill.on('text-change', sync);
+        sync();
+
+        // Ensure sync right before submit.
+        const form = el.closest('form');
+        if (form) form.addEventListener('submit', sync);
       });
     });
   </script>

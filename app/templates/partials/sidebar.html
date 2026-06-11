@@ -36,6 +36,12 @@
         Історія
       </a>
     {% endif %}
-    <a href="{{ url_for('auth.logout') }}">Вихід</a>
+
+    <a href="{{ url_for('visualization.visualization_index') }}" target="_blank" rel="noopener" class="sidebar-viz">
+      🗺 Візуалізація
+      <span class="sidebar-viz-ext">↗</span>
+    </a>
+
+    <a href="{{ url_for('auth.logout') }}" class="sidebar-logout">Вихід</a>
   </nav>
 </aside>
