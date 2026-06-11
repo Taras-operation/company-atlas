@@ -96,14 +96,19 @@
   <div class="card">
     <h2>Керівники</h2>
     <ul>
+      {% set seen_lead_ids = [] %}
       {% for item in department.lead_links %}
-        <li>
-          {{ item.person.full_name }}
-          {% if item.person.position %} — {{ item.person.position }}{% endif %}
-        </li>
-      {% else %}
-        <li>Поки пусто</li>
+        {% if item.person and item.person.id not in seen_lead_ids %}
+          {% set _ = seen_lead_ids.append(item.person.id) %}
+          <li>
+            {{ item.person.full_name }}
+            {% if item.person.position %} — {{ item.person.position }}{% endif %}
+          </li>
+        {% endif %}
       {% endfor %}
+      {% if not seen_lead_ids %}
+        <li>Поки пусто</li>
+      {% endif %}
     </ul>
   </div>
 

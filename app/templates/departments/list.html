@@ -76,11 +76,13 @@
           {% endif %}
         </td>
         <td>
+          {% set lead_names = [] %}
           {% for link in item.lead_links %}
-            {{ link.person.full_name }}{% if not loop.last %}, {% endif %}
-          {% else %}
-            —
+            {% if link.person and link.person.full_name not in lead_names %}
+              {% set _ = lead_names.append(link.person.full_name) %}
+            {% endif %}
           {% endfor %}
+          {{ lead_names|join(', ') if lead_names else '—' }}
         </td>
       </tr>
       {% else %}

@@ -585,6 +585,19 @@ def _serialize_department_station(department, public_view=False, viewer_access=N
             "head_links",
         ],
     )
+    # Same person may have multiple lead rows (e.g. "head" + "department_lead").
+    # Keep only the first occurrence per person to avoid duplicate leaders.
+    _seen_lead_persons = set()
+    _deduped_leader_links = []
+    for _link in leader_links:
+        _pid = _safe_getattr(_link, "person_id", None)
+        if _pid is None:
+            _pid = _safe_getattr(_safe_getattr(_link, "person", None), "id", None)
+        if _pid in _seen_lead_persons:
+            continue
+        _seen_lead_persons.add(_pid)
+        _deduped_leader_links.append(_link)
+    leader_links = _deduped_leader_links
     people_links = _get_first_existing_collection(
         department,
         [

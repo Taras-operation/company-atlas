@@ -56,7 +56,11 @@ def _set_department_multi_values(dep, brand_ids, geo_ids, tag_ids, lead_ids):
     for tag_id in tag_ids:
         db.session.add(DepartmentTag(department_id=dep.id, tag_id=tag_id))
 
+    seen_lead_ids = set()
     for person_id in lead_ids:
+        if person_id in seen_lead_ids:
+            continue
+        seen_lead_ids.add(person_id)
         db.session.add(
             DepartmentLead(
                 department_id=dep.id,
