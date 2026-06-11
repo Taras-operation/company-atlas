@@ -2424,23 +2424,30 @@ function App() {
                     </span>
                   )}
 
-                  {selectedDepartment.leaders?.slice(0, 2).map((leader) => (
+                  {selectedDepartment.leaders?.slice(0, 3).map((leader) => (
                     <button
                       key={leader.id || leader.user?.id || leader.user?.email}
                       onClick={() => setSelectedPerson({ ...leader, source: 'leader' })}
+                      title={leader.inherited ? `Успадковано від ${leader.inherited_from}` : ''}
                       style={{
                         borderRadius: 999,
                         padding: '8px 12px',
                         fontSize: 12,
                         fontWeight: 700,
-                        border: '1px solid rgba(251,146,60,.35)',
-                        background: 'rgba(251,146,60,.12)',
-                        color: '#FDBA74',
+                        border: leader.inherited ? '1px solid rgba(148,163,184,.35)' : '1px solid rgba(251,146,60,.35)',
+                        background: leader.inherited ? 'rgba(148,163,184,.12)' : 'rgba(251,146,60,.12)',
+                        color: leader.inherited ? '#CBD5E1' : '#FDBA74',
                         cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
                       }}
                     >
-                      TL: {leader.user?.name || leader.user?.full_name || leader.user?.email || 'Без имени'}
+                      {leader.inherited ? '↑' : 'TL:'} {leader.user?.name || leader.user?.full_name || leader.user?.email || 'Без імені'}
                       {leader.user?.telegram ? ` · ${leader.user.telegram}` : ''}
+                      {leader.inherited && (
+                        <span style={{ fontSize: 10, opacity: 0.7 }}>({leader.inherited_from})</span>
+                      )}
                     </button>
                   ))}
                 </div>

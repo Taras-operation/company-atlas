@@ -587,17 +587,34 @@ def _serialize_department_station(department, public_view=False, viewer_access=N
     )
     # Same person may have multiple lead rows (e.g. "head" + "department_lead").
     # Keep only the first occurrence per person to avoid duplicate leaders.
+    # Also inherit leaders from the parent department chain (sub-departments
+    # show their own TL plus the parent department's head as inherited).
+    def _lead_person_id(link):
+        pid = _safe_getattr(link, "person_id", None)
+        if pid is None:
+            pid = _safe_getattr(_safe_getattr(link, "person", None), "id", None)
+        return pid
+
     _seen_lead_persons = set()
-    _deduped_leader_links = []
+    _leader_entries = []  # (link, inherited: bool, source_name: str|None)
     for _link in leader_links:
-        _pid = _safe_getattr(_link, "person_id", None)
-        if _pid is None:
-            _pid = _safe_getattr(_safe_getattr(_link, "person", None), "id", None)
+        _pid = _lead_person_id(_link)
         if _pid in _seen_lead_persons:
             continue
         _seen_lead_persons.add(_pid)
-        _deduped_leader_links.append(_link)
-    leader_links = _deduped_leader_links
+        _leader_entries.append((_link, False, None))
+
+    _parent = _safe_getattr(department, "parent_department", None)
+    _guard = 0
+    while _parent is not None and _guard < 10:
+        _guard += 1
+        for _link in (_safe_getattr(_parent, "lead_links", []) or []):
+            _pid = _lead_person_id(_link)
+            if _pid in _seen_lead_persons:
+                continue
+            _seen_lead_persons.add(_pid)
+            _leader_entries.append((_link, True, _safe_getattr(_parent, "name", None)))
+        _parent = _safe_getattr(_parent, "parent_department", None)
     people_links = _get_first_existing_collection(
         department,
         [
@@ -689,6 +706,19 @@ def _serialize_department_station(department, public_view=False, viewer_access=N
             "is_public_limited": True,
         }
 
+    leaders_payload = []
+    if viewer_access is None or viewer_access.get("can_view_leaders"):
+        for _link, _inh, _src in _leader_entries:
+            _serialized = _serialize_leader_link(_link)
+            if not _serialized:
+                continue
+            _sanitized = _sanitize_person_payload(_serialized, viewer_access, "leader")
+            if not _sanitized:
+                continue
+            _sanitized["inherited"] = _inh
+            _sanitized["inherited_from"] = _src
+            leaders_payload.append(_sanitized)
+
     return {
         "id": department.id,
         "name": department.name,
@@ -733,11 +763,7 @@ def _serialize_department_station(department, public_view=False, viewer_access=N
         "tags": [item for item in (_serialize_tag_link(link) for link in tag_links) if item.get("name")],
         "has_children": bool(children),
         "children": [_serialize_child_department(child) for child in children] if viewer_access is None or viewer_access.get("can_view_related_departments") else [],
-        "leaders": [
-            _sanitize_person_payload(item, viewer_access, "leader")
-            for item in (_serialize_leader_link(link) for link in leader_links)
-            if item and (viewer_access is None or viewer_access.get("can_view_leaders"))
-        ],
+        "leaders": leaders_payload,
         "people": [
             _sanitize_person_payload(item, viewer_access, "people")
             for item in (_serialize_person_link(link) for link in people_links)

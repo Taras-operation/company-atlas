@@ -63,6 +63,37 @@ class Department(db.Model):
         back_populates="department_to",
     )
 
+    def effective_leaders(self):
+        """Own leaders + inherited leaders from parent department(s).
+
+        Returns a list of dicts: {"person", "inherited" (bool), "source" (parent name or None)}.
+        Deduped by person; own leaders take priority over inherited ones.
+        """
+        result = []
+        seen = set()
+
+        for link in self.lead_links:
+            person = getattr(link, "person", None)
+            if not person or person.id in seen:
+                continue
+            seen.add(person.id)
+            result.append({"person": person, "inherited": False, "source": None})
+
+        # Walk up the parent chain, inheriting any not-yet-seen leaders.
+        parent = self.parent_department
+        guard = 0
+        while parent and guard < 10:
+            guard += 1
+            for link in parent.lead_links:
+                person = getattr(link, "person", None)
+                if not person or person.id in seen:
+                    continue
+                seen.add(person.id)
+                result.append({"person": person, "inherited": True, "source": parent.name})
+            parent = parent.parent_department
+
+        return result
+
 
 class DepartmentBrand(db.Model):
     __tablename__ = "department_brands"

@@ -96,19 +96,18 @@
   <div class="card">
     <h2>Керівники</h2>
     <ul>
-      {% set seen_lead_ids = [] %}
-      {% for item in department.lead_links %}
-        {% if item.person and item.person.id not in seen_lead_ids %}
-          {% set _ = seen_lead_ids.append(item.person.id) %}
-          <li>
-            {{ item.person.full_name }}
-            {% if item.person.position %} — {{ item.person.position }}{% endif %}
-          </li>
-        {% endif %}
-      {% endfor %}
-      {% if not seen_lead_ids %}
+      {% set leaders = department.effective_leaders() %}
+      {% for lead in leaders %}
+        <li>
+          {{ lead.person.full_name }}
+          {% if lead.person.position %} — {{ lead.person.position }}{% endif %}
+          {% if lead.inherited %}
+            <span class="badge badge-gray" title="Успадковано від батьківського відділу">↑ {{ lead.source }}</span>
+          {% endif %}
+        </li>
+      {% else %}
         <li>Поки пусто</li>
-      {% endif %}
+      {% endfor %}
     </ul>
   </div>
 
