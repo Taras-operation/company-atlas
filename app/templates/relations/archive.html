@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Архів зв’язків{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Архів зв’язків</h1>
+
+  <div class="actions">
+    <a class="btn btn-secondary" href="{{ url_for('relations.list_relations') }}">
+      ← До зв’язків
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Звідки</th>
+        <th>Куди</th>
+        <th>Опис</th>
+        <th>Напрямок</th>
+        <th>Сила</th>
+        <th></th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td>{{ item.department_from.name if item.department_from else "—" }}</td>
+          <td>{{ item.department_to.name if item.department_to else "—" }}</td>
+          <td>{{ item.short_description or "—" }}</td>
+
+          <td>
+            {% if item.direction == "from_to" %}
+              A → B
+            {% elif item.direction == "to_from" %}
+              B → A
+            {% elif item.direction == "bidirectional" %}
+              A ↔ B
+            {% else %}
+              —
+            {% endif %}
+          </td>
+
+          <td>
+            {% if item.strength == "low" %}
+              Слабка
+            {% elif item.strength == "medium" %}
+              Середня
+            {% elif item.strength == "high" %}
+              Сильна
+            {% else %}
+              —
+            {% endif %}
+          </td>
+
+          <td>
+            <form method="post"
+                  action="{{ url_for('relations.restore_relation', relation_id=item.id) }}"
+                  style="display:inline;">
+              <button class="btn btn-primary" type="submit">Відновити</button>
+            </form>
+
+            <a class="btn btn-secondary" href="{{ url_for('relations.edit_relation', relation_id=item.id) }}">
+              Редагувати
+            </a>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="6">Архів пустий</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

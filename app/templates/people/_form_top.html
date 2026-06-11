@@ -1,0 +1,295 @@
+<div class="field">
+  <label>Ім’я</label>
+  <input type="text" name="full_name" value="{{ person.full_name if person else '' }}" required>
+</div>
+
+<div class="field">
+  <label>Telegram</label>
+  <input type="text" name="telegram" value="{{ person.telegram if person else '' }}">
+</div>
+
+<div class="field">
+  <label>Email</label>
+  <input type="email" name="email" value="{{ person.email if person else '' }}">
+</div>
+
+<div class="field">
+  <label>Reddy</label>
+  <input type="text" name="phone" value="{{ person.phone if person else '' }}">
+</div>
+
+<div class="field">
+  <label>Відділ</label>
+  <select name="department_id" id="person_department_id">
+    <option value="">— Обрати відділ —</option>
+    {% for item in departments %}
+      <option value="{{ item.id }}"
+              data-parent-id="{{ item.parent_department_id or '' }}"
+              {% if person and person.department_id == item.id %}selected{% endif %}>
+        {{ item.name }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="field">
+  <label>Посада</label>
+  <input type="text" name="position" value="{{ person.position if person else '' }}">
+</div>
+
+<div class="field">
+  <label>Керівник</label>
+  <select name="manager_id" id="manager_id">
+    <option value="">— Немає —</option>
+
+    {% for item in people %}
+      {% set manager_status = namespace(is_lead=false) %}
+      {% for lead in item.lead_departments %}
+        {% if lead.lead_type in ["department_lead", "head", "teamlead", "tl"] %}
+          {% set manager_status.is_lead = true %}
+        {% endif %}
+      {% endfor %}
+
+      <option value="{{ item.id }}"
+              data-department-id="{{ item.department_id or '' }}"
+              data-is-lead="{{ '1' if manager_status.is_lead else '0' }}"
+              {% if person and person.manager_id == item.id %}selected{% endif %}>
+        {{ item.full_name }}
+      </option>
+    {% endfor %}
+  </select>
+
+  {% set lead_status = namespace(is_lead=false) %}
+  {% if person %}
+    {% for item in person.lead_departments %}
+      {% if item.lead_type in ["department_lead", "head", "teamlead", "tl"] %}
+        {% set lead_status.is_lead = true %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  <label class="checkbox-row">
+    <input type="checkbox" name="is_department_lead" {% if lead_status.is_lead %}checked{% endif %}>
+    Це керівник / TL / Head цього відділу
+  </label>
+</div>
+
+<div class="field">
+  <label>Grade</label>
+  <select name="grade" id="grade_select">
+    <option value="junior" {% if not person or person.grade == "junior" %}selected{% endif %}>Junior</option>
+    <option value="middle" {% if person and person.grade == "middle" %}selected{% endif %}>Middle</option>
+    <option value="senior" {% if person and person.grade == "senior" %}selected{% endif %}>Senior</option>
+  </select>
+</div>
+
+<div class="field full">
+  <label>GEO / міста / ринки</label>
+  {% set selected_geo_location_ids = person.geo_location_links|map(attribute='geo_location_id')|list if person else [] %}
+  <select name="geo_location_ids" id="geo_location_ids" class="js-multi-select" multiple data-placeholder="Оберіть GEO locations">
+    {% for item in geo_locations %}
+      <option value="{{ item.id }}" {% if item.id in selected_geo_location_ids %}selected{% endif %}>
+        {{ item.geo.name }} — {{ item.name }}{% if item.location_type %} ({{ item.location_type }}){% endif %}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="field full">
+  <label>Зона відповідальності</label>
+  <textarea name="responsibility_area" rows="4">{{ person.responsibility_area if person else '' }}</textarea>
+</div>
+
+<script>
+  function setCheckbox(name, checked) {
+    const el = document.querySelector(`input[name="${name}"]`);
+    if (el) el.checked = checked;
+  }
+
+  function filterManagersByDepartment() {
+    const departmentSelect = document.getElementById("person_department_id");
+    const managerSelect = document.getElementById("manager_id");
+
+    if (!departmentSelect || !managerSelect) return;
+
+    const selectedDepartmentOption = departmentSelect.options[departmentSelect.selectedIndex];
+    const selectedDepartmentId = departmentSelect.value;
+    const parentDepartmentId = selectedDepartmentOption?.dataset.parentId || "";
+
+    let visibleManagers = [];
+
+    Array.from(managerSelect.options).forEach((option) => {
+      if (!option.value) {
+        option.hidden = false;
+        return;
+      }
+
+      const managerDepartmentId = option.dataset.departmentId || "";
+      const isLead = option.dataset.isLead === "1";
+
+      const sameDepartment = managerDepartmentId === selectedDepartmentId;
+      const isParentDepartment = parentDepartmentId && managerDepartmentId === parentDepartmentId;
+
+      const shouldShow = isLead && (sameDepartment || isParentDepartment);
+
+      option.hidden = !shouldShow;
+
+      if (shouldShow) {
+        visibleManagers.push(option);
+      }
+    });
+
+    const selectedOption = managerSelect.options[managerSelect.selectedIndex];
+
+    if (selectedOption && selectedOption.hidden) {
+      managerSelect.value = "";
+    }
+
+    if (!managerSelect.value && visibleManagers.length === 1) {
+      managerSelect.value = visibleManagers[0].value;
+    }
+
+    managerSelect.disabled = !selectedDepartmentId || visibleManagers.length === 0;
+  }
+
+  function rememberInitialCheckboxState() {
+    document.querySelectorAll("[data-access-checkbox]").forEach((input) => {
+      input.dataset.initialChecked = input.checked ? "1" : "0";
+    });
+  }
+
+  function updateManualChangedState(input) {
+    const row = input.closest(".checkbox-row");
+    if (!row || input.dataset.initialChecked === undefined) return;
+
+    const currentValue = input.checked ? "1" : "0";
+    row.classList.toggle("is-manual-changed", currentValue !== input.dataset.initialChecked);
+  }
+
+  function refreshManualChangedStates() {
+    document.querySelectorAll("[data-access-checkbox]").forEach((input) => {
+      updateManualChangedState(input);
+    });
+  }
+
+  function bindManualChangedTracking() {
+    document.querySelectorAll("[data-access-checkbox]").forEach((input) => {
+      input.addEventListener("change", function () {
+        updateManualChangedState(input);
+      });
+    });
+  }
+
+  function toggleSelectedBlocks() {
+    const brandScope = document.getElementById("brand_scope");
+    const geoScope = document.getElementById("geo_scope");
+    const departmentScope = document.getElementById("department_scope");
+
+    const brandBlock = document.getElementById("visibility_brand_block");
+    const geoBlock = document.getElementById("visibility_geo_block");
+    const departmentBlock = document.getElementById("visibility_department_block");
+
+    if (brandBlock && brandScope) {
+      brandBlock.style.display = brandScope.value === "selected" ? "block" : "none";
+    }
+
+    if (geoBlock && geoScope) {
+      geoBlock.style.display = geoScope.value === "selected" ? "block" : "none";
+    }
+
+    if (departmentBlock && departmentScope) {
+      departmentBlock.style.display = departmentScope.value === "selected" ? "block" : "none";
+    }
+  }
+
+  function applyAccessPreset() {
+    const access = document.getElementById("department_card_access")?.value;
+    const allAccessCheckboxes = document.querySelectorAll("[data-access-checkbox]");
+
+    allAccessCheckboxes.forEach((el) => el.checked = false);
+
+    if (access === "none") {
+      setCheckbox("card_show_short_description", true);
+    }
+
+    if (access === "limited") {
+      setCheckbox("card_show_short_description", true);
+      setCheckbox("card_show_full_description", true);
+      setCheckbox("show_department_email", true);
+      setCheckbox("show_department_telegram", true);
+      setCheckbox("show_department_chat_link", true);
+      setCheckbox("show_department_people_count", true);
+      setCheckbox("show_department_leads", true);
+      setCheckbox("show_department_people", true);
+      setCheckbox("show_lead_contacts", true);
+      setCheckbox("show_lead_email", true);
+      setCheckbox("show_lead_telegram", true);
+      setCheckbox("show_lead_reddy", true);
+    }
+
+    if (access === "full") {
+      allAccessCheckboxes.forEach((el) => el.checked = true);
+    }
+
+    refreshManualChangedStates();
+  }
+
+  function applyGradeRules() {
+    const grade = document.getElementById("grade_select")?.value;
+    const accessSelect = document.getElementById("department_card_access");
+
+    if (!grade || !accessSelect) return;
+
+    const noneOption = accessSelect.querySelector('option[value="none"]');
+    const limitedOption = accessSelect.querySelector('option[value="limited"]');
+    const fullOption = accessSelect.querySelector('option[value="full"]');
+
+    if (grade === "junior") {
+      if (noneOption) noneOption.disabled = false;
+      if (limitedOption) limitedOption.disabled = true;
+      if (fullOption) fullOption.disabled = true;
+
+      if (accessSelect.value !== "none") {
+        accessSelect.value = "none";
+        applyAccessPreset();
+      }
+    } else {
+      if (noneOption) noneOption.disabled = false;
+      if (limitedOption) limitedOption.disabled = false;
+      if (fullOption) fullOption.disabled = false;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    toggleSelectedBlocks();
+    applyGradeRules();
+    filterManagersByDepartment();
+    rememberInitialCheckboxState();
+    bindManualChangedTracking();
+
+    const personDepartmentSelect = document.getElementById("person_department_id");
+    if (personDepartmentSelect) {
+      personDepartmentSelect.addEventListener("change", filterManagersByDepartment);
+    }
+
+    ["brand_scope", "geo_scope", "department_scope"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("change", toggleSelectedBlocks);
+    });
+
+    const accessSelect = document.getElementById("department_card_access");
+    if (accessSelect) {
+      accessSelect.addEventListener("change", function () {
+        applyAccessPreset();
+        applyGradeRules();
+      });
+    }
+
+    const gradeSelect = document.getElementById("grade_select");
+    if (gradeSelect) {
+      gradeSelect.addEventListener("change", function () {
+        applyGradeRules();
+      });
+    }
+  });
+</script>

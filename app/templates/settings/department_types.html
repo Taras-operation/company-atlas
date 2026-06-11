@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Типи відділів{% endblock %}
+
+{% block content %}
+<div class="page-header"><h1>Типи відділів</h1></div>
+
+{% if edit_item %}
+<div class="card">
+  <h3 style="margin-top:0">Редагувати: {{ edit_item.name }}</h3>
+  <form method="post" action="{{ url_for('settings.edit_department_type', item_id=edit_item.id) }}" class="form-grid">
+    <div class="field"><label>Назва</label><input type="text" name="name" value="{{ edit_item.name }}" required></div>
+    <div class="field full"><label>Опис</label><textarea name="description" rows="2">{{ edit_item.description or '' }}</textarea></div>
+    <div class="actions full">
+      <button class="btn btn-primary" type="submit">Зберегти</button>
+      <a href="{{ url_for('settings.department_types') }}" class="btn btn-secondary">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% else %}
+<div class="card">
+  <form method="post" class="form-grid">
+    <div class="field"><label>Назва</label><input type="text" name="name" required></div>
+    <div class="field full"><label>Опис</label><textarea name="description" rows="2"></textarea></div>
+    <div class="actions"><button class="btn btn-primary" type="submit">Додати</button></div>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <table class="table">
+    <thead><tr><th>Назва</th><th>Опис</th><th>Відділів</th><th></th></tr></thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td><strong>{{ item.name }}</strong></td>
+        <td>{{ item.description or "—" }}</td>
+        <td>{{ item.departments|length }}</td>
+        <td class="actions">
+          <a href="{{ url_for('settings.department_types', edit_id=item.id) }}" class="btn btn-secondary btn-sm">Ред.</a>
+          <form method="post" action="{{ url_for('settings.delete_department_type', item_id=item.id) }}" style="display:inline"
+                onsubmit="return confirm('Видалити «{{ item.name }}»?')">
+            <button class="btn btn-danger btn-sm" type="submit">Вид.</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">Поки пусто</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

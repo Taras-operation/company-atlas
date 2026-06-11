@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Редагувати зв’язок{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Редагувати зв’язок</h1>
+    <p class="muted">
+      {{ relation.department_from.name if relation.department_from else "—" }}
+      →
+      {{ relation.department_to.name if relation.department_to else "—" }}
+    </p>
+  </div>
+
+  <form method="post" action="{{ url_for('relations.archive_relation', relation_id=relation.id) }}">
+    <button type="submit" class="btn btn-danger">Архівувати</button>
+  </form>
+</div>
+
+<div class="card">
+  <form method="post" class="form-grid">
+    {% include "relations/_form.html" %}
+
+    <div class="actions full">
+      <button class="btn btn-primary" type="submit">Зберегти</button>
+      <a href="{{ url_for('relations.list_relations') }}" class="btn btn-secondary">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

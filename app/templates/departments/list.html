@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Відділи</h1>
+  {% if current_user.admin_role in ['super_admin', 'admin'] %}
+    <a class="btn btn-primary" href="{{ url_for('departments.create_department') }}">+ Додати відділ</a>
+  {% endif %}
+</div>
+
+<div class="card">
+  <form method="get" class="filters">
+    <input type="text" name="search" placeholder="Пошук..." value="{{ request.args.get('search', '') }}">
+    <button class="btn btn-primary" type="submit">Знайти</button>
+  </form>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Назва</th>
+        <th>Тип</th>
+        <th>Розмір</th>
+        <th>Бренди</th>
+        <th>GEO</th>
+        <th>Керівники</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>
+          <a href="{{ url_for('departments.detail_department', department_id=item.id) }}">{{ item.name }}</a>
+        </td>
+        <td>{{ item.department_type.name if item.department_type else "—" }}</td>
+        <td>{{ item.size_label or "—" }}</td>
+        <td>
+          {% for link in item.brand_links %}
+            {{ link.brand.name }}{% if not loop.last %}, {% endif %}
+          {% else %}
+            —
+          {% endfor %}
+        </td>
+        <td>
+          {% for link in item.geo_links %}
+            {{ link.geo.name }}{% if not loop.last %}, {% endif %}
+          {% else %}
+            —
+          {% endfor %}
+        </td>
+        <td>
+          {% for link in item.lead_links %}
+            {{ link.person.full_name }}{% if not loop.last %}, {% endif %}
+          {% else %}
+            —
+          {% endfor %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6">Поки пусто</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "partials/pagination.html" %}
+{% endblock %}

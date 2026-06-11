@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Люди{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Люди</h1>
+  <a href="{{ url_for('people.create_person') }}" class="btn btn-primary">+ Додати</a>
+</div>
+
+<div class="card">
+  <form method="get" class="filters">
+    <input type="text" name="search" placeholder="Пошук по імені..." value="{{ request.args.get('search', '') }}">
+
+    <select name="department_id">
+      <option value="">Всі відділи</option>
+      {% for dept in departments %}
+        <option value="{{ dept.id }}" {% if request.args.get('department_id') == dept.id|string %}selected{% endif %}>
+          {{ dept.name }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <select name="grade">
+      <option value="">Всі грейди</option>
+      {% for g in grades %}
+        <option value="{{ g }}" {% if request.args.get('grade') == g %}selected{% endif %}>
+          {{ g|capitalize }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <button class="btn btn-primary" type="submit">Знайти</button>
+    {% if request.args.get('search') or request.args.get('department_id') or request.args.get('grade') %}
+      <a href="{{ url_for('people.list_people') }}" class="btn btn-secondary">Скинути</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Ім'я</th>
+        <th>Посада</th>
+        <th>Відділ</th>
+        <th>Grade</th>
+        <th>Керівник</th>
+        <th>Доступ</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td><a href="{{ url_for('people.detail_person', person_id=item.id) }}"><strong>{{ item.full_name }}</strong></a></td>
+          <td>{{ item.position or "—" }}</td>
+          <td>{{ item.department.name if item.department else "—" }}</td>
+          <td><span class="badge badge-gray">{{ item.grade }}</span></td>
+          <td>{{ item.manager.full_name if item.manager else "—" }}</td>
+          <td>
+            {% if item.viewer_user %}
+              {% if item.viewer_user.is_active_user %}
+                <span class="badge badge-green">Активний</span>
+              {% else %}
+                <span class="badge badge-red">Вимкнений</span>
+              {% endif %}
+            {% else %}
+              <span class="badge badge-gray">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('people.edit_person', person_id=item.id) }}">Редагувати</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="7">Поки пусто</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

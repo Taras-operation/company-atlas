@@ -1,0 +1,353 @@
+<div class="field full">
+  <h3>Видимість</h3>
+  <p class="visibility-help">
+    Налаштування визначають, що саме ця людина зможе бачити у візуалізації компанії.
+    Залежні поля автоматично вимикаються, якщо вимкнено батьківський доступ.
+  </p>
+</div>
+
+<div class="field full">
+  <label class="checkbox-row">
+    <input type="checkbox" name="map_access" {% if not person or person.map_access %}checked{% endif %}>
+    Бачить загальну карту / візуалізацію
+    <span class="visibility-info" title="Якщо вимкнути, користувач не бачить карту компанії у viewer-режимі.">ⓘ</span>
+  </label>
+
+  <label class="checkbox-row">
+    <input type="checkbox" name="map_show_connections" {% if not person or person.map_show_connections %}checked{% endif %}>
+    Бачить зв’язки між відділами
+    <span class="visibility-info" title="Показує лінії або зв’язки між відділами на загальній карті.">ⓘ</span>
+  </label>
+</div>
+
+<div class="field">
+  <label>Бренди</label>
+  <select name="brand_scope" id="brand_scope" data-scope-select data-target-block="visibility_brand_block">
+    <option value="all" {% if not person or person.brand_scope == "all" %}selected{% endif %}>Всі бренди</option>
+    <option value="selected" {% if person and person.brand_scope == "selected" %}selected{% endif %}>Вибрані бренди</option>
+    <option value="none" {% if person and person.brand_scope == "none" %}selected{% endif %}>Не показувати бренди</option>
+  </select>
+
+  <div class="visibility-selected-block" id="visibility_brand_block" style="margin-top:12px;">
+    <label>Вибрані бренди</label>
+    {% set selected_visibility_brand_ids = person.visibility_brand_links|map(attribute='brand_id')|list if person else [] %}
+    <select name="visibility_brand_ids" id="visibility_brand_ids" class="js-multi-select" multiple data-placeholder="Оберіть бренди">
+      {% for item in brands %}
+        <option value="{{ item.id }}" {% if item.id in selected_visibility_brand_ids %}selected{% endif %}>
+          {{ item.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<div class="field">
+  <label>GEO</label>
+  <select name="geo_scope" id="geo_scope" data-scope-select data-target-block="visibility_geo_block">
+    <option value="all" {% if not person or person.geo_scope == "all" %}selected{% endif %}>Всі GEO</option>
+    <option value="selected" {% if person and person.geo_scope == "selected" %}selected{% endif %}>Вибрані GEO</option>
+    <option value="none" {% if person and person.geo_scope == "none" %}selected{% endif %}>Не показувати GEO</option>
+  </select>
+
+  <div class="visibility-selected-block" id="visibility_geo_block" style="margin-top:12px;">
+    <label>Вибрані GEO</label>
+    {% set selected_visibility_geo_ids = person.visibility_geo_links|map(attribute='geo_id')|list if person else [] %}
+    <select name="visibility_geo_ids" id="visibility_geo_ids" class="js-multi-select" multiple data-placeholder="Оберіть GEO">
+      {% for item in geos %}
+        <option value="{{ item.id }}" {% if item.id in selected_visibility_geo_ids %}selected{% endif %}>
+          {{ item.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<div class="field">
+  <label>Відділи</label>
+  <select name="department_scope" id="department_scope" data-scope-select data-target-block="visibility_department_block">
+    <option value="all" {% if not person or person.department_scope == "all" %}selected{% endif %}>Всі відділи</option>
+    <option value="selected" {% if person and person.department_scope == "selected" %}selected{% endif %}>Вибрані відділи</option>
+    <option value="none" {% if person and person.department_scope == "none" %}selected{% endif %}>Не показувати відділи</option>
+  </select>
+
+  <div class="visibility-selected-block" id="visibility_department_block" style="margin-top:12px;">
+    <label>Вибрані відділи</label>
+    {% set selected_visibility_department_ids = person.visibility_department_links|map(attribute='department_id')|list if person else [] %}
+    <select name="visibility_department_ids" id="visibility_department_ids" class="js-multi-select" multiple data-placeholder="Оберіть відділи">
+      {% for item in departments %}
+        <option value="{{ item.id }}" {% if item.id in selected_visibility_department_ids %}selected{% endif %}>
+          {{ item.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<div class="field">
+  <label>Доступ до картки відділу</label>
+  <select name="department_card_access" id="department_card_access">
+    <option value="none" {% if person and person.department_card_access == "none" %}selected{% endif %}>Закритий доступ</option>
+    <option value="limited" {% if not person or person.department_card_access == "limited" %}selected{% endif %}>Частково обмежений доступ</option>
+    <option value="full" {% if person and person.department_card_access == "full" %}selected{% endif %}>Повний доступ</option>
+  </select>
+  <p class="visibility-help">
+    <span class="visibility-info" title="Закритий доступ вимикає деталізацію картки. Частковий доступ дозволяє вибрати окремі блоки. Повний доступ відкриває всі основні дані картки.">ⓘ</span>
+    Рівень доступу керує доступністю нижніх чекбоксів картки.
+  </p>
+</div>
+
+<div class="field full">
+  <div class="visibility-groups-grid">
+
+    <div class="visibility-group">
+      <h4>Контент картки відділу</h4>
+      <p class="visibility-help">Що саме буде видно всередині картки відділу.</p>
+
+      <div class="checkbox-grid">
+        <label class="checkbox-row">
+          <input type="checkbox" name="card_show_short_description" data-access-checkbox data-card-dependent {% if not person or person.card_show_short_description %}checked{% endif %}>
+          Бачить короткий опис відділу
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="card_show_full_description" data-access-checkbox data-card-dependent {% if person and person.card_show_full_description %}checked{% endif %}>
+          Бачить повний опис і функціонал відділу
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="card_show_relations" data-access-checkbox data-card-dependent {% if not person or person.card_show_relations %}checked{% endif %}>
+          Бачить зв’язані відділи
+        </label>
+      </div>
+    </div>
+
+    <div class="visibility-group">
+      <h4>Контакти відділу</h4>
+      <p class="visibility-help">Загальні контакти відділу, не персональні контакти людей.</p>
+
+      <div class="checkbox-grid">
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_department_email" data-access-checkbox data-card-dependent {% if person and person.show_department_email %}checked{% endif %}>
+          Email відділу
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_department_telegram" data-access-checkbox data-card-dependent {% if person and person.show_department_telegram %}checked{% endif %}>
+          Telegram відділу
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_department_chat_link" data-access-checkbox data-card-dependent {% if person and person.show_department_chat_link %}checked{% endif %}>
+          Chat link відділу
+        </label>
+      </div>
+    </div>
+
+    <div class="visibility-group">
+      <h4>Команда відділу</h4>
+      <p class="visibility-help">Кількість людей, TL/Head та список людей відділу.</p>
+
+      <div class="checkbox-grid">
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_department_people_count" data-access-checkbox data-card-dependent {% if not person or person.show_department_people_count %}checked{% endif %}>
+          Бачить кількість людей у відділі
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_department_leads" data-access-checkbox data-card-dependent data-controls="show_department_lead_positions,show_lead_contacts" {% if not person or person.show_department_leads %}checked{% endif %}>
+          Бачить керівників / TL / Head
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_department_lead_positions" data-access-checkbox data-card-dependent data-requires="show_department_leads" {% if not person or person.show_department_lead_positions %}checked{% endif %}>
+          Бачить посади керівників / TL / Head
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_department_people" data-access-checkbox data-card-dependent data-controls="show_department_people_positions,show_department_people_responsibility,show_people_contacts" {% if person and person.show_department_people %}checked{% endif %}>
+          Бачить людей відділу
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_department_people_positions" data-access-checkbox data-card-dependent data-requires="show_department_people" {% if not person or person.show_department_people_positions %}checked{% endif %}>
+          Бачить посади людей відділу
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_department_people_responsibility" data-access-checkbox data-card-dependent data-requires="show_department_people" {% if person and person.show_department_people_responsibility %}checked{% endif %}>
+          Бачить зону відповідальності людей відділу
+        </label>
+      </div>
+    </div>
+
+    <div class="visibility-group">
+      <h4>Контакти керівників / TL</h4>
+      <p class="visibility-help">Окремий доступ до контактів керівників, TL або Head.</p>
+
+      <div class="checkbox-grid">
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_lead_contacts" data-access-checkbox data-card-dependent data-controls="show_lead_contacts,show_lead_email,show_lead_telegram,show_lead_reddy" data-controls="show_lead_email,show_lead_telegram,show_lead_reddy" {% if person and person.show_lead_contacts %}checked{% endif %}>
+          Бачить контакти керівників / TL
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_lead_email" data-access-checkbox data-card-dependent data-requires="show_lead_contacts" {% if person and person.show_lead_email %}checked{% endif %}>
+          Email керівників / TL
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_lead_telegram" data-access-checkbox data-card-dependent data-requires="show_lead_contacts" {% if person and person.show_lead_telegram %}checked{% endif %}>
+          Telegram керівників / TL
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_lead_reddy" data-access-checkbox data-card-dependent data-requires="show_lead_contacts" {% if person and person.show_lead_reddy %}checked{% endif %}>
+          Reddy керівників / TL
+        </label>
+      </div>
+    </div>
+
+    <div class="visibility-group">
+      <h4>Контакти людей відділу</h4>
+      <p class="visibility-help">Окремий доступ до персональних контактів людей у відділі.</p>
+
+      <div class="checkbox-grid">
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_people_contacts" data-access-checkbox data-card-dependent data-requires="show_department_people" data-controls="show_people_email,show_people_telegram,show_people_reddy" {% if person and person.show_people_contacts %}checked{% endif %}>
+          Бачить контакти людей відділу
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_people_email" data-access-checkbox data-card-dependent data-requires="show_people_contacts" {% if person and person.show_people_email %}checked{% endif %}>
+          Email людей відділу
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_people_telegram" data-access-checkbox data-card-dependent data-requires="show_people_contacts" {% if person and person.show_people_telegram %}checked{% endif %}>
+          Telegram людей відділу
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="show_people_reddy" data-access-checkbox data-card-dependent data-requires="show_people_contacts" {% if person and person.show_people_reddy %}checked{% endif %}>
+          Reddy людей відділу
+        </label>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+<style>
+  .visibility-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: help;
+    opacity: .75;
+  }
+
+  .visibility-selected-block.is-hidden,
+  .checkbox-row.is-hidden {
+    display: none;
+  }
+
+  .checkbox-row.is-disabled {
+    opacity: .48;
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const scopeSelects = document.querySelectorAll("[data-scope-select]");
+    const cardAccessSelect = document.getElementById("department_card_access");
+
+    function syncScopeBlock(select) {
+      const blockId = select.dataset.targetBlock;
+      const block = document.getElementById(blockId);
+      if (!block) return;
+
+      const shouldShow = select.value === "selected";
+      block.classList.toggle("is-hidden", !shouldShow);
+
+      block.querySelectorAll("select, input").forEach(function (field) {
+        field.disabled = !shouldShow;
+      });
+    }
+
+    function getCheckbox(name) {
+      return document.querySelector('input[type="checkbox"][name="' + name + '"]');
+    }
+
+    function setRowDisabled(input, disabled) {
+      const row = input.closest(".checkbox-row");
+      input.disabled = disabled;
+      if (disabled) {
+        input.checked = false;
+      }
+      if (row) {
+        row.classList.toggle("is-disabled", disabled);
+      }
+    }
+
+    function syncCheckboxDependencies() {
+      const cardClosed = cardAccessSelect && cardAccessSelect.value === "none";
+
+      document.querySelectorAll("[data-card-dependent]").forEach(function (input) {
+        setRowDisabled(input, cardClosed);
+      });
+
+      if (cardClosed) return;
+
+      document.querySelectorAll("input[type='checkbox'][data-requires]").forEach(function (input) {
+        const parent = getCheckbox(input.dataset.requires);
+        const shouldDisable = parent && !parent.checked;
+        setRowDisabled(input, shouldDisable);
+      });
+    }
+
+    function syncControlledChildren(parent) {
+      const controlled = (parent.dataset.controls || "").split(",").map(function (item) {
+        return item.trim();
+      }).filter(Boolean);
+
+      if (parent.checked) return;
+
+      controlled.forEach(function (name) {
+        const child = getCheckbox(name);
+        if (child) {
+          child.checked = false;
+        }
+      });
+    }
+
+    scopeSelects.forEach(function (select) {
+      syncScopeBlock(select);
+      select.addEventListener("change", function () {
+        syncScopeBlock(select);
+      });
+    });
+
+    document.querySelectorAll("input[type='checkbox'][data-controls]").forEach(function (input) {
+      input.addEventListener("change", function () {
+        syncControlledChildren(input);
+        syncCheckboxDependencies();
+      });
+    });
+
+    document.querySelectorAll("input[type='checkbox'][data-requires]").forEach(function (input) {
+      input.addEventListener("change", syncCheckboxDependencies);
+    });
+
+    if (cardAccessSelect) {
+      cardAccessSelect.addEventListener("change", syncCheckboxDependencies);
+    }
+
+    syncCheckboxDependencies();
+  });
+</script>

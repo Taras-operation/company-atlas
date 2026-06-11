@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Створити користувача адмінки</h1>
+  <a class="btn btn-secondary" href="{{ url_for('settings.admin_users') }}">← До списку</a>
+</div>
+
+<div class="card">
+  <form method="post" class="form-grid">
+    <div class="field">
+      <label>Логін</label>
+      <input type="text" name="username" required>
+    </div>
+
+    <div class="field">
+      <label>Пароль</label>
+      <input type="password" name="password" required>
+    </div>
+
+    <div class="field">
+      <label>Роль</label>
+      <select name="admin_role" required>
+        <option value="">— Обрати роль —</option>
+        <option value="super_admin">Super Admin</option>
+        <option value="admin">Admin</option>
+        <option value="head_tl">Head TL</option>
+        <option value="tl">TL</option>
+        <option value="viewer">Viewer</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Відділ доступу</label>
+      <select name="department_id">
+        <option value="">— Без обмеження —</option>
+        {% for item in departments %}
+          <option value="{{ item.id }}">{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field full">
+      <label>Прив’язати до людини</label>
+      <select name="person_id">
+        <option value="">— Не прив’язувати —</option>
+        {% for item in people %}
+          <option value="{{ item.id }}">
+            {{ item.full_name }}{% if item.position %} — {{ item.position }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="is_active_user" checked>
+        Активний користувач
+      </label>
+    </div>
+
+    <div class="actions full">
+      <button class="btn btn-primary" type="submit">Створити</button>
+      <a class="btn btn-secondary" href="{{ url_for('settings.admin_users') }}">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

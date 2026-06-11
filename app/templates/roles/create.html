@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Створити профіль видимості{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Створити профіль видимості</h1>
+</div>
+
+<div class="card">
+  <form method="post" class="form-grid">
+    <div class="field">
+      <label>Назва профілю</label>
+      <input type="text" name="name" required>
+    </div>
+
+    <input type="hidden" name="role_type" value="visibility_role">
+
+    <div class="field full">
+      <label>Опис</label>
+      <textarea name="description" rows="3"></textarea>
+    </div>
+
+    <div class="field full"><h3>1. Карта</h3></div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="map_access" checked>
+        Бачить загальну карту / візуалізацію
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="map_show_connections" checked>
+        Бачить зв’язки між відділами
+      </label>
+    </div>
+
+    <div class="field">
+      <label>Бренди</label>
+      <select name="brand_scope">
+        <option value="all">Всі бренди</option>
+        <option value="selected">Вибрані бренди</option>
+        <option value="none">Не показувати бренди</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>GEO</label>
+      <select name="geo_scope">
+        <option value="all">Всі GEO</option>
+        <option value="selected">Вибрані GEO</option>
+        <option value="none">Не показувати GEO</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Відділи</label>
+      <select name="department_scope">
+        <option value="all">Всі відділи</option>
+        <option value="selected">Вибрані відділи</option>
+        <option value="none">Не показувати відділи</option>
+      </select>
+    </div>
+
+    <div class="field full"><h3>2. Картка відділу</h3></div>
+
+    <div class="field">
+      <label>Доступ до картки відділу</label>
+      <select name="department_card_access">
+        <option value="none">Не відкриває картку</option>
+        <option value="limited" selected>Обмежена картка</option>
+        <option value="full">Повна картка</option>
+      </select>
+    </div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="show_in_department_card" checked>
+        Може відкривати картку відділу
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="card_show_short_description" checked>
+        Бачить короткий опис
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="card_show_full_description">
+        Бачить повний опис
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="card_show_functions">
+        Бачить функції відділу
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="card_show_relations" checked>
+        Бачить зв’язані відділи
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="card_show_processes">
+        Бачить процеси
+      </label>
+    </div>
+
+    <div class="field full"><h3>3. Люди</h3></div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="people_access">
+        Бачить людей у відділі
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="people_show_leads" checked>
+        Бачить керівників / TL / Head
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="people_show_positions" checked>
+        Бачить посади
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="people_show_responsibility">
+        Бачить зону відповідальності людей
+      </label>
+    </div>
+
+    <div class="field full"><h3>4. Контакти</h3></div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="contacts_access">
+        Бачить контакти
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="contacts_show_email">
+        Email
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="contacts_show_telegram">
+        Telegram
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="contacts_show_reddy">
+        Reddy
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="contacts_show_chat_links">
+        Chat links
+      </label>
+    </div>
+
+    <div class="field full"><h3>5. Ознаки профілю</h3></div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="show_in_visualization" checked>
+        Профіль активний для візуалізації
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="is_managerial">
+        Керівний профіль / TL / Head
+      </label>
+    </div>
+
+    <div class="actions full">
+      <button type="submit" class="btn btn-primary">Зберегти</button>
+      <a href="{{ url_for('roles.list_roles') }}" class="btn btn-secondary">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

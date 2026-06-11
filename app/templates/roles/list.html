@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% block title %}Видимість{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Видимість</h1>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('people')" id="tab-btn-people">
+    Доступи людей
+    <span class="tab-count">{{ people|length }}</span>
+  </button>
+
+  {% if can_review_visibility_requests %}
+  <button class="tab-btn" onclick="switchTab('requests')" id="tab-btn-requests">
+    Запити на зміну
+    {% if pending_count > 0 %}
+      <span class="tab-count tab-count-alert">{{ pending_count }}</span>
+    {% else %}
+      <span class="tab-count">{{ requests|length }}</span>
+    {% endif %}
+  </button>
+  {% endif %}
+</div>
+
+<!-- Tab: People -->
+<div id="tab-people" class="tab-content">
+  <div class="card">
+    {% set access_labels = {
+        'none':    'Без доступу',
+        'limited': 'Обмежений',
+        'full':    'Повний'
+    } %}
+    {% set scope_labels = {
+        'all':      'Всі',
+        'selected': 'Обрані',
+        'none':     'Жодного'
+    } %}
+    {% set grade_colors = {
+        'junior': 'badge-gray',
+        'middle': 'badge-blue',
+        'senior': 'badge-orange'
+    } %}
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Людина</th>
+          <th>Відділ</th>
+          <th>Grade</th>
+          <th>Картка</th>
+          <th>Бренди</th>
+          <th>GEO</th>
+          <th>Відділи</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for person in people %}
+          <tr>
+            <td>
+              <strong>{{ person.full_name }}</strong><br>
+              <span class="muted">{{ person.position or "—" }}</span>
+            </td>
+            <td>{{ person.department.name if person.department else "—" }}</td>
+            <td>
+              <span class="badge {{ grade_colors.get(person.grade, 'badge-gray') }}">
+                {{ person.grade }}
+              </span>
+            </td>
+            <td>
+              <span class="badge {{ 'badge-green' if person.department_card_access == 'full' else ('badge-blue' if person.department_card_access == 'limited' else 'badge-gray') }}">
+                {{ access_labels.get(person.department_card_access, person.department_card_access) }}
+              </span>
+            </td>
+            <td>
+              <span class="badge {{ 'badge-gray' if person.brand_scope == 'all' else 'badge-blue' }}">
+                {{ scope_labels.get(person.brand_scope, person.brand_scope) }}
+              </span>
+            </td>
+            <td>
+              <span class="badge {{ 'badge-gray' if person.geo_scope == 'all' else 'badge-blue' }}">
+                {{ scope_labels.get(person.geo_scope, person.geo_scope) }}
+              </span>
+            </td>
+            <td>
+              <span class="badge {{ 'badge-gray' if person.department_scope == 'all' else 'badge-blue' }}">
+                {{ scope_labels.get(person.department_scope, person.department_scope) }}
+              </span>
+            </td>
+            <td>
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('people.edit_person', person_id=person.id) }}">
+                Редагувати
+              </a>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8">Поки пусто</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Tab: Requests -->
+{% if can_review_visibility_requests %}
+<div id="tab-requests" class="tab-content" style="display:none">
+  {% if requests %}
+    <div style="display:grid; gap:14px;">
+      {% for item in requests %}
+        <div class="card" style="border-left: 4px solid {{ '#f59e0b' if item.status == 'pending' else ('#22c55e' if item.status == 'approved' else '#ef4444') }}">
+
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:20px; margin-bottom:12px;">
+            <div>
+              <div style="font-size:16px; font-weight:700;">{{ item.person.full_name }}</div>
+              <div class="muted" style="margin-top:4px; font-size:13px;">
+                Запросив: {{ item.requested_by.username if item.requested_by else '—' }}
+              </div>
+            </div>
+            <div>
+              {% if item.status == "pending" %}
+                <span class="badge badge-orange">Очікує</span>
+              {% elif item.status == "approved" %}
+                <span class="badge badge-green">Підтверджено</span>
+              {% else %}
+                <span class="badge badge-red">Відхилено</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+            <div style="background:#f3f4f6; padding:6px 12px; border-radius:8px; font-size:13px;">
+              <strong>Grade:</strong> {{ item.change_view.grade }}
+            </div>
+            <div style="background:#f3f4f6; padding:6px 12px; border-radius:8px; font-size:13px;">
+              <strong>Рівень доступу:</strong> {{ item.change_view.access_level }}
+            </div>
+          </div>
+
+          {% if item.change_view.opened or item.change_view.closed or item.change_view.changed %}
+          <div class="changes-grid">
+            <!-- Відкрити -->
+            <div class="changes-col changes-col-open">
+              <div class="changes-col-head">
+                <span class="changes-dot" style="background:#22c55e"></span>
+                Відкрити доступ
+                <span class="changes-num">{{ item.change_view.opened|length }}</span>
+              </div>
+              {% if item.change_view.opened %}
+                <ul class="changes-list">
+                  {% for change in item.change_view.opened %}
+                    <li>{{ change }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <div class="changes-empty">—</div>
+              {% endif %}
+            </div>
+
+            <!-- Закрити -->
+            <div class="changes-col changes-col-close">
+              <div class="changes-col-head">
+                <span class="changes-dot" style="background:#ef4444"></span>
+                Закрити доступ
+                <span class="changes-num">{{ item.change_view.closed|length }}</span>
+              </div>
+              {% if item.change_view.closed %}
+                <ul class="changes-list">
+                  {% for change in item.change_view.closed %}
+                    <li>{{ change }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <div class="changes-empty">—</div>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if item.change_view.changed %}
+          <div style="margin-bottom:14px;">
+            <div class="changes-col-head" style="margin-bottom:6px;">
+              <span class="changes-dot" style="background:#3b82f6"></span>
+              Змінити
+              <span class="changes-num">{{ item.change_view.changed|length }}</span>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              {% for change in item.change_view.changed %}
+                <span class="badge badge-blue">{{ change }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          {% endif %}
+
+          {% if item.comment %}
+            <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:10px 14px; font-size:13px; line-height:1.5; margin-bottom:12px;">
+              <strong>Коментар:</strong> {{ item.comment }}
+            </div>
+          {% endif %}
+
+          {% if item.status == "pending" %}
+            <div class="actions">
+              <form method="post" action="{{ url_for('roles.approve_visibility_request', request_id=item.id) }}" style="display:inline;">
+                <button class="btn btn-primary" type="submit">Підтвердити</button>
+              </form>
+              <form method="post" action="{{ url_for('roles.reject_visibility_request', request_id=item.id) }}" style="display:inline;">
+                <button class="btn btn-danger" type="submit">Відхилити</button>
+              </form>
+            </div>
+          {% endif %}
+
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card" style="color:#6b7280; text-align:center; padding:40px">
+      Запитів на зміну доступів немає
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<style>
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 0;
+  transition: all 0.15s ease;
+}
+
+.tab-btn:hover {
+  color: #111827;
+  background: none;
+}
+
+.tab-btn.active {
+  color: #111827;
+  border-bottom-color: #111827;
+  background: none;
+}
+
+.tab-count {
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.tab-count-alert {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Changes grid (open / close) */
+.changes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.changes-col {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.changes-col-open  { background: #f0fdf4; border-color: #bbf7d0; }
+.changes-col-close { background: #fef2f2; border-color: #fecaca; }
+
+.changes-col-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #374151;
+  margin-bottom: 10px;
+}
+
+.changes-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.changes-num {
+  margin-left: auto;
+  background: rgba(0,0,0,0.06);
+  color: #374151;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+
+.changes-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.changes-list li {
+  font-size: 13px;
+  color: #1f2937;
+  padding-left: 16px;
+  position: relative;
+  line-height: 1.4;
+}
+
+.changes-col-open  .changes-list li::before { content: "+"; color: #16a34a; font-weight: 800; position: absolute; left: 2px; }
+.changes-col-close .changes-list li::before { content: "−"; color: #dc2626; font-weight: 800; position: absolute; left: 2px; }
+
+.changes-empty {
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+@media (max-width: 700px) {
+  .changes-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).style.display = 'block';
+  document.getElementById('tab-btn-' + name).classList.add('active');
+}
+
+// Якщо є pending запити — одразу відкриваємо вкладку запитів
+{% if pending_count > 0 %}
+document.addEventListener('DOMContentLoaded', function() {
+  switchTab('requests');
+});
+{% endif %}
+</script>
+
+{% endblock %}

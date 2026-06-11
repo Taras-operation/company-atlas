@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Редагувати користувача адмінки</h1>
+  <a class="btn btn-secondary" href="{{ url_for('settings.admin_users') }}">← До списку</a>
+</div>
+
+<div class="card">
+  <form method="post" class="form-grid">
+    <div class="field">
+      <label>Логін</label>
+      <input type="text" name="username" value="{{ user.username }}" required>
+    </div>
+
+    <div class="field">
+      <label>Роль</label>
+      <select name="admin_role" required>
+        <option value="super_admin" {% if user.admin_role == "super_admin" %}selected{% endif %}>Super Admin</option>
+        <option value="admin" {% if user.admin_role == "admin" %}selected{% endif %}>Admin</option>
+        <option value="head_tl" {% if user.admin_role == "head_tl" %}selected{% endif %}>Head TL</option>
+        <option value="tl" {% if user.admin_role == "tl" %}selected{% endif %}>TL</option>
+        <option value="viewer" {% if user.admin_role == "viewer" %}selected{% endif %}>Viewer</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Відділ доступу</label>
+      <select name="department_id">
+        <option value="">— Без обмеження —</option>
+        {% for item in departments %}
+          <option value="{{ item.id }}" {% if user.department_id == item.id %}selected{% endif %}>
+            {{ item.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Прив’язати до людини</label>
+      <select name="person_id">
+        <option value="">— Не прив’язувати —</option>
+        {% for item in people %}
+          <option value="{{ item.id }}" {% if user.person_id == item.id %}selected{% endif %}>
+            {{ item.full_name }}{% if item.position %} — {{ item.position }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="is_active_user" {% if user.is_active_user %}checked{% endif %}>
+        Активний користувач
+      </label>
+    </div>
+
+    <div class="actions full">
+      <button class="btn btn-primary" type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="{{ url_for('settings.admin_users') }}">Скасувати</a>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Скинути пароль</h2>
+
+  <form method="post" action="{{ url_for('settings.reset_admin_user_password', user_id=user.id) }}" class="form-grid">
+    <div class="field">
+      <label>Новий пароль</label>
+      <input type="password" name="password" required>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">Оновити пароль</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Редагувати людину{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Редагувати людину</h1>
+</div>
+
+<div class="card">
+  <form method="post" class="form-grid">
+    {% include "people/_form_top.html" %}
+
+    <div class="card full" style="box-shadow:none; border:1px solid #e5e7eb; margin-top:18px;">
+      <h2>Доступ до візуалізації</h2>
+      <p class="muted" style="margin-top:-6px;">
+        Окремий логін для перегляду карти компанії. Це не доступ до адмінки.
+      </p>
+
+      {% if person.viewer_user %}
+
+        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:16px;">
+          <div style="background:#f3f4f6; padding:10px 14px; border-radius:12px;">
+            <strong>Логін:</strong>
+            {{ person.viewer_user.username }}
+          </div>
+
+          {% if person.viewer_user.is_active_user %}
+            <div style="background:#dcfce7; color:#166534; padding:10px 14px; border-radius:12px; font-weight:700;">
+              Активний
+            </div>
+          {% else %}
+            <div style="background:#fee2e2; color:#991b1b; padding:10px 14px; border-radius:12px; font-weight:700;">
+              Вимкнений
+            </div>
+          {% endif %}
+
+          {% if person.viewer_user.last_login_at %}
+            <div class="muted">
+              Останній вхід:
+              {{ person.viewer_user.last_login_at.strftime('%d.%m.%Y %H:%M') }}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label>Новий пароль для візуалізації</label>
+            <input type="text"
+                   name="new_viewer_password"
+                   placeholder="Заповни тільки якщо треба змінити пароль">
+          </div>
+
+          <div class="field">
+            <label class="checkbox-row" style="margin-top:26px;">
+              <input type="checkbox"
+                     name="viewer_is_active"
+                     {% if person.viewer_user.is_active_user %}checked{% endif %}>
+              Активний доступ до візуалізації
+            </label>
+          </div>
+        </div>
+
+      {% else %}
+
+        <label class="checkbox-row" style="margin:14px 0;">
+          <input type="checkbox" name="create_viewer_access" id="create_viewer_access">
+          Створити доступ до візуалізації
+        </label>
+
+        <div id="viewer_access_fields" style="display:none; grid-column:1 / -1;">
+          <div class="grid-2">
+            <div class="field">
+              <label>Логін для візуалізації</label>
+              <input type="text"
+                     name="viewer_username"
+                     placeholder="Наприклад: alex_pm">
+            </div>
+
+            <div class="field">
+              <label>Пароль для візуалізації</label>
+              <input type="text"
+                     name="viewer_password"
+                     placeholder="Пароль">
+            </div>
+          </div>
+        </div>
+
+        <script>
+          document.addEventListener("DOMContentLoaded", function () {
+            const checkbox = document.getElementById("create_viewer_access");
+            const fields = document.getElementById("viewer_access_fields");
+
+            function toggleViewerAccessFields() {
+              if (!checkbox || !fields) return;
+              fields.style.display = checkbox.checked ? "block" : "none";
+            }
+
+            if (checkbox) {
+              checkbox.addEventListener("change", toggleViewerAccessFields);
+              toggleViewerAccessFields();
+            }
+          });
+        </script>
+
+      {% endif %}
+    </div>
+
+    {% include "people/_form_visibility.html" %}
+
+    <div class="actions full">
+      <button type="submit" class="btn btn-primary">Зберегти</button>
+      <a href="{{ url_for('people.detail_person', person_id=person.id) }}" class="btn btn-secondary">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

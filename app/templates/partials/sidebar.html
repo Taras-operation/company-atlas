@@ -1,0 +1,41 @@
+{% set bp = request.blueprint %}
+<aside class="sidebar">
+  <a href="{{ url_for('dashboard.index') }}" class="sidebar-logo">
+    <span>CRM</span>
+  </a>
+  <nav>
+    <a href="{{ url_for('dashboard.index') }}"
+       class="{{ 'active' if bp == 'dashboard' else '' }}">
+      Dashboard
+    </a>
+    <a href="{{ url_for('departments.list_departments') }}"
+       class="{{ 'active' if bp == 'departments' else '' }}">
+      Відділи
+    </a>
+    <a href="{{ url_for('people.list_people') }}"
+       class="{{ 'active' if bp == 'people' else '' }}">
+      Люди
+    </a>
+    <a href="{{ url_for('roles.list_roles') }}"
+       class="{{ 'active' if bp == 'roles' else '' }}">
+      Видимість
+    </a>
+    <a href="{{ url_for('relations.list_relations') }}"
+       class="{{ 'active' if bp == 'relations' else '' }}">
+      Зв'язки
+    </a>
+    {% if current_user.admin_role in ['super_admin', 'admin'] %}
+      <a href="{{ url_for('settings.index') }}"
+         class="{{ 'active' if bp == 'settings' else '' }}">
+        Налаштування
+      </a>
+    {% endif %}
+    {% if current_user.admin_role in ['super_admin', 'admin'] %}
+      <a href="{{ url_for('audit.list_audit') }}"
+         class="{{ 'active' if bp == 'audit' else '' }}">
+        Історія
+      </a>
+    {% endif %}
+    <a href="{{ url_for('auth.logout') }}">Вихід</a>
+  </nav>
+</aside>

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Користувачі адмінки</h1>
+  <a class="btn btn-primary" href="{{ url_for('settings.create_admin_user') }}">+ Додати користувача</a>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Логін</th>
+        <th>Роль</th>
+        <th>Людина</th>
+        <th>Відділ</th>
+        <th>Активний</th>
+        <th></th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td><strong>{{ item.username }}</strong></td>
+          <td>{{ item.admin_role }}</td>
+          <td>{{ item.person.full_name if item.person else "—" }}</td>
+          <td>{{ item.scoped_department.name if item.scoped_department else "—" }}</td>
+          <td>{{ "Так" if item.is_active_user else "Ні" }}</td>
+          <td>
+            <a class="btn btn-secondary" href="{{ url_for('settings.edit_admin_user', user_id=item.id) }}">Редагувати</a>
+
+            {% if item.id != current_user.id %}
+              <form method="post" action="{{ url_for('settings.toggle_admin_user_active', user_id=item.id) }}" style="display:inline;">
+                <button type="submit" class="btn btn-secondary">
+                  {{ "Деактивувати" if item.is_active_user else "Активувати" }}
+                </button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="6">Поки пусто</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

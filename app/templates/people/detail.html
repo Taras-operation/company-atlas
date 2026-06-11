@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}{{ person.full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ person.full_name }}</h1>
+    <p class="muted">
+      {{ person.position or "Посада не вказана" }}
+      {% if person.department %} • {{ person.department.name }}{% endif %}
+    </p>
+  </div>
+
+  <div class="actions">
+    <a class="btn btn-secondary" href="{{ url_for('people.list_people') }}">← До списку</a>
+    <a class="btn btn-primary" href="{{ url_for('people.create_person') }}">+ Додати людину</a>
+    <a class="btn btn-primary" href="{{ url_for('people.edit_person', person_id=person.id) }}">Редагувати</a>
+
+    <form method="post" action="{{ url_for('people.archive_person', person_id=person.id) }}" style="display:inline;">
+      <button class="btn btn-danger" type="submit">Архівувати</button>
+    </form>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Загальне</h2>
+
+    {% set lead_status = namespace(is_lead=false) %}
+    {% for item in person.lead_departments %}
+      {% if item.lead_type in ["department_lead", "head", "teamlead", "tl"] %}
+        {% set lead_status.is_lead = true %}
+      {% endif %}
+    {% endfor %}
+
+    <p><strong>Ім’я:</strong> {{ person.full_name }}</p>
+    <p><strong>Telegram:</strong> {{ person.telegram or "—" }}</p>
+    <p><strong>Email:</strong> {{ person.email or "—" }}</p>
+    <p><strong>Reddy:</strong> {{ person.phone or "—" }}</p>
+    <p><strong>Відділ:</strong> {{ person.department.name if person.department else "—" }}</p>
+    <p><strong>Посада:</strong> {{ person.position or "—" }}</p>
+    <p>
+      <strong>Керівник:</strong>
+      {% if person.manager %}
+        {{ person.manager.full_name }}
+      {% elif lead_status.is_lead %}
+        Сам є керівником / TL / Head відділу
+      {% else %}
+        —
+      {% endif %}
+    </p>
+    <p><strong>Статус керівника:</strong> {{ "Так" if lead_status.is_lead else "Ні" }}</p>
+  </div>
+
+  <div class="card">
+    <h2>Видимість</h2>
+    <ul>
+      {% for item in person.role_links %}
+        <li>
+          {{ item.role.name }}
+          {% if item.role.show_in_visualization %}
+            <span class="muted">— бачить візуалізацію</span>
+          {% endif %}
+          {% if item.role.show_in_department_card %}
+            <span class="muted">— може відкривати картку відділу</span>
+          {% endif %}
+        </li>
+      {% else %}
+        <li>Поки пусто</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>GEO / міста / ринки</h2>
+    <ul>
+      {% for item in person.geo_location_links %}
+        <li>{{ item.geo_location.geo.name }} — {{ item.geo_location.name }}</li>
+      {% else %}
+        <li>Поки пусто</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Підлеглі</h2>
+    <ul>
+      {% set has_subordinates = namespace(value=false) %}
+      {% for item in person.subordinates %}
+        {% if not item.is_archived %}
+          {% set has_subordinates.value = true %}
+          <li>{{ item.full_name }}{% if item.position %} — {{ item.position }}{% endif %}</li>
+        {% endif %}
+      {% endfor %}
+      {% if not has_subordinates.value %}
+        <li>Поки пусто</li>
+      {% endif %}
+    </ul>
+  </div>
+
+  <div class="card full-width">
+    <h2>Доступ до візуалізації</h2>
+
+    {% if person.viewer_user %}
+      <div style="display:flex; flex-direction:column; gap:16px;">
+
+        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+          <div style="background:#f3f4f6; padding:10px 14px; border-radius:12px;">
+            <strong>Логін:</strong>
+            {{ person.viewer_user.username }}
+          </div>
+
+          {% if person.viewer_user.is_active_user %}
+            <div style="background:#dcfce7; color:#166534; padding:10px 14px; border-radius:12px; font-weight:700;">
+              Активний
+            </div>
+          {% else %}
+            <div style="background:#fee2e2; color:#991b1b; padding:10px 14px; border-radius:12px; font-weight:700;">
+              Вимкнений
+            </div>
+          {% endif %}
+
+          {% if person.viewer_user.last_login_at %}
+            <div class="muted">
+              Останній вхід:
+              {{ person.viewer_user.last_login_at.strftime('%d.%m.%Y %H:%M') }}
+            </div>
+          {% else %}
+            <div class="muted">
+              Останній вхід: —
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="actions">
+          <a class="btn btn-secondary" href="{{ url_for('people.edit_person', person_id=person.id) }}">
+            Редагувати доступ
+          </a>
+        </div>
+
+      </div>
+    {% else %}
+      <p class="muted">Доступ до візуалізації ще не створено.</p>
+
+      <div class="actions">
+        <a class="btn btn-primary" href="{{ url_for('people.edit_person', person_id=person.id) }}">
+          Створити доступ
+        </a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card full-width">
+    <h2>Зона відповідальності</h2>
+    <p>{{ person.responsibility_area or "—" }}</p>
+  </div>
+</div>
+{% endblock %}

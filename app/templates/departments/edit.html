@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Створити відділ</h1>
+</div>
+
+<div class="card">
+  <form method="post">
+    {% include "departments/partials/form.html" %}
+    <div class="actions">
+      <button type="submit" class="btn btn-primary">Зберегти</button>
+      <a href="{{ url_for('departments.list_departments') }}" class="btn btn-secondary">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Архів відділів{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Архів відділів</h1>
+
+  <div class="actions">
+    <a class="btn btn-secondary" href="{{ url_for('departments.list_departments') }}">
+      ← До відділів
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Назва</th>
+        <th>Тип</th>
+        <th>Розмір</th>
+        <th></th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td>
+            <strong>{{ item.name }}</strong>
+          </td>
+
+          <td>
+            {{ item.department_type.name if item.department_type else "—" }}
+          </td>
+
+          <td>
+            {{ item.size_label or "—" }}
+          </td>
+
+          <td>
+            <form method="post"
+                  action="{{ url_for('departments.restore_department', department_id=item.id) }}"
+                  style="display:inline;">
+              <button class="btn btn-primary" type="submit">
+                Відновити
+              </button>
+            </form>
+
+            <a class="btn btn-secondary" href="{{ url_for('departments.edit_department', department_id=item.id) }}">
+              Редагувати
+            </a>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="4">
+            Архів пустий
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

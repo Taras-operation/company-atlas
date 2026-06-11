@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Редагувати профіль видимості{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Редагувати профіль видимості</h1>
+    <p class="muted">{{ role.name }}</p>
+  </div>
+
+  <div class="actions">
+    <form method="post" action="{{ url_for('roles.archive_role', role_id=role.id) }}">
+      <button type="submit" class="btn btn-danger">Архівувати</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <form method="post" class="form-grid">
+    <div class="field">
+      <label>Назва профілю</label>
+      <input type="text" name="name" value="{{ role.name }}" required>
+    </div>
+
+    <input type="hidden" name="role_type" value="visibility_role">
+
+    <div class="field full">
+      <label>Опис</label>
+      <textarea name="description" rows="3">{{ role.description or "" }}</textarea>
+    </div>
+
+    <div class="field full"><h3>1. Карта</h3></div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="map_access" {% if role.map_access %}checked{% endif %}>
+        Бачить загальну карту / візуалізацію
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="map_show_connections" {% if role.map_show_connections %}checked{% endif %}>
+        Бачить зв’язки між відділами
+      </label>
+    </div>
+
+    <div class="field">
+      <label>Бренди</label>
+      <select name="brand_scope">
+        <option value="all" {% if role.brand_scope == "all" %}selected{% endif %}>Всі бренди</option>
+        <option value="selected" {% if role.brand_scope == "selected" %}selected{% endif %}>Вибрані бренди</option>
+        <option value="none" {% if role.brand_scope == "none" %}selected{% endif %}>Не показувати бренди</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>GEO</label>
+      <select name="geo_scope">
+        <option value="all" {% if role.geo_scope == "all" %}selected{% endif %}>Всі GEO</option>
+        <option value="selected" {% if role.geo_scope == "selected" %}selected{% endif %}>Вибрані GEO</option>
+        <option value="none" {% if role.geo_scope == "none" %}selected{% endif %}>Не показувати GEO</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Відділи</label>
+      <select name="department_scope">
+        <option value="all" {% if role.department_scope == "all" %}selected{% endif %}>Всі відділи</option>
+        <option value="selected" {% if role.department_scope == "selected" %}selected{% endif %}>Вибрані відділи</option>
+        <option value="none" {% if role.department_scope == "none" %}selected{% endif %}>Не показувати відділи</option>
+      </select>
+    </div>
+
+    <div class="field full"><h3>2. Картка відділу</h3></div>
+
+    <div class="field">
+      <label>Доступ до картки відділу</label>
+      <select name="department_card_access">
+        <option value="none" {% if role.department_card_access == "none" %}selected{% endif %}>Не відкриває картку</option>
+        <option value="limited" {% if role.department_card_access == "limited" %}selected{% endif %}>Обмежена картка</option>
+        <option value="full" {% if role.department_card_access == "full" %}selected{% endif %}>Повна картка</option>
+      </select>
+    </div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="show_in_department_card" {% if role.show_in_department_card %}checked{% endif %}>
+        Може відкривати картку відділу
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="card_show_short_description" {% if role.card_show_short_description %}checked{% endif %}>
+        Бачить короткий опис
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="card_show_full_description" {% if role.card_show_full_description %}checked{% endif %}>
+        Бачить повний опис
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="card_show_functions" {% if role.card_show_functions %}checked{% endif %}>
+        Бачить функції відділу
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="card_show_relations" {% if role.card_show_relations %}checked{% endif %}>
+        Бачить зв’язані відділи
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="card_show_processes" {% if role.card_show_processes %}checked{% endif %}>
+        Бачить процеси
+      </label>
+    </div>
+
+    <div class="field full"><h3>3. Люди</h3></div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="people_access" {% if role.people_access %}checked{% endif %}>
+        Бачить людей у відділі
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="people_show_leads" {% if role.people_show_leads %}checked{% endif %}>
+        Бачить керівників / TL / Head
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="people_show_positions" {% if role.people_show_positions %}checked{% endif %}>
+        Бачить посади
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="people_show_responsibility" {% if role.people_show_responsibility %}checked{% endif %}>
+        Бачить зону відповідальності людей
+      </label>
+    </div>
+
+    <div class="field full"><h3>4. Контакти</h3></div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="contacts_access" {% if role.contacts_access %}checked{% endif %}>
+        Бачить контакти
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="contacts_show_email" {% if role.contacts_show_email %}checked{% endif %}>
+        Email
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="contacts_show_telegram" {% if role.contacts_show_telegram %}checked{% endif %}>
+        Telegram
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="contacts_show_reddy" {% if role.contacts_show_reddy %}checked{% endif %}>
+        Reddy
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="contacts_show_chat_links" {% if role.contacts_show_chat_links %}checked{% endif %}>
+        Chat links
+      </label>
+    </div>
+
+    <div class="field full"><h3>5. Ознаки профілю</h3></div>
+
+    <div class="field full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="show_in_visualization" {% if role.show_in_visualization %}checked{% endif %}>
+        Профіль активний для візуалізації
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="is_managerial" {% if role.is_managerial %}checked{% endif %}>
+        Керівний профіль / TL / Head
+      </label>
+    </div>
+
+    <div class="actions full">
+      <button type="submit" class="btn btn-primary">Зберегти</button>
+      <a href="{{ url_for('roles.list_roles') }}" class="btn btn-secondary">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

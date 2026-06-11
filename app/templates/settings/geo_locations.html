@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header"><h1>GEO Locations</h1></div>
+
+<div class="card">
+  <form method="post" class="form-grid">
+    <div class="field">
+      <label>GEO</label>
+      <select name="geo_id" required>
+        <option value="">-- Обрати --</option>
+        {% for item in geos %}
+          <option value="{{ item.id }}">{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Назва</label>
+      <input type="text" name="name" required>
+    </div>
+
+    <div class="field">
+      <label>Тип</label>
+      <select name="location_type" required>
+        <option value="country">country</option>
+        <option value="city">city</option>
+        <option value="market">market</option>
+      </select>
+    </div>
+
+    <div class="field full">
+      <label>Опис</label>
+      <textarea name="description" rows="3"></textarea>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">Додати</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead><tr><th>GEO</th><th>Назва</th><th>Тип</th><th>Людей</th><th></th></tr></thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.geo.name }}</td>
+        <td>{{ item.name }}</td>
+        <td><span class="badge badge-gray">{{ item.location_type }}</span></td>
+        <td>{{ item.person_links|length }}</td>
+        <td>
+          <form method="post" action="{{ url_for('settings.delete_geo_location', item_id=item.id) }}" style="display:inline"
+                onsubmit="return confirm('Видалити локацію «{{ item.name }}»?')">
+            <button class="btn btn-danger btn-sm" type="submit">Вид.</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">Поки пусто</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

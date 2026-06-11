@@ -1,0 +1,8 @@
+<header class="topbar">
+  <div>
+    {% if current_user.is_authenticated %}
+      <strong>{{ current_user.username }}</strong>
+      <span class="muted">{{ current_user.admin_role }}</span>
+    {% endif %}
+  </div>
+</header>

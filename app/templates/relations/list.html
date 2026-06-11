@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Зв'язки{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Зв'язки між відділами</h1>
+  <a href="{{ url_for('relations.create_relation') }}" class="btn btn-primary">+ Додати зв'язок</a>
+</div>
+
+<div class="card">
+  <form method="get" class="filters">
+    <select name="status">
+      <option value="">Всі статуси</option>
+      <option value="active"  {% if request.args.get('status') == 'active'  %}selected{% endif %}>Активний</option>
+      <option value="draft"   {% if request.args.get('status') == 'draft'   %}selected{% endif %}>Чернетка</option>
+      <option value="paused"  {% if request.args.get('status') == 'paused'  %}selected{% endif %}>Пауза</option>
+    </select>
+
+    <select name="strength">
+      <option value="">Вся сила</option>
+      <option value="high"   {% if request.args.get('strength') == 'high'   %}selected{% endif %}>Сильний</option>
+      <option value="medium" {% if request.args.get('strength') == 'medium' %}selected{% endif %}>Середній</option>
+      <option value="low"    {% if request.args.get('strength') == 'low'    %}selected{% endif %}>Слабкий</option>
+    </select>
+
+    <button class="btn btn-primary" type="submit">Фільтр</button>
+    {% if request.args.get('status') or request.args.get('strength') %}
+      <a href="{{ url_for('relations.list_relations') }}" class="btn btn-secondary">Скинути</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Звідки</th>
+        <th>Куди</th>
+        <th>Опис</th>
+        <th>Напрямок</th>
+        <th>Сила</th>
+        <th>Карта</th>
+        <th>Статус</th>
+        <th></th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td>{{ item.department_from.name if item.department_from else "—" }}</td>
+          <td>{{ item.department_to.name if item.department_to else "—" }}</td>
+          <td>{{ item.short_description or "—" }}</td>
+
+          <td>
+            {% if item.direction == "from_to" %}A → B
+            {% elif item.direction == "to_from" %}B → A
+            {% elif item.direction == "bidirectional" %}A ↔ B
+            {% else %}—{% endif %}
+          </td>
+
+          <td>
+            {% if item.strength == "high" %}
+              <span class="badge badge-green">Сильна</span>
+            {% elif item.strength == "medium" %}
+              <span class="badge badge-blue">Середня</span>
+            {% elif item.strength == "low" %}
+              <span class="badge badge-gray">Слабка</span>
+            {% else %}—{% endif %}
+          </td>
+
+          <td>{{ "Так" if item.show_on_map else "Ні" }}</td>
+
+          <td>
+            {% if item.status == "active" %}
+              <span class="badge badge-green">Активний</span>
+            {% elif item.status == "draft" %}
+              <span class="badge badge-gray">Чернетка</span>
+            {% elif item.status == "paused" %}
+              <span class="badge badge-orange">Пауза</span>
+            {% else %}—{% endif %}
+          </td>
+
+          <td>
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('relations.edit_relation', relation_id=item.id) }}">Редагувати</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="8">Поки зв'язків немає</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

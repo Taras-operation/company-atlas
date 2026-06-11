@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ department.name }}</h1>
+    <p class="muted">
+      {% if department.department_type %}{{ department.department_type.name }}{% endif %}
+      {% if department.size_label %} • {{ department.size_label }}{% endif %}
+    </p>
+  </div>
+
+  <div class="actions">
+    <a class="btn btn-secondary" href="{{ url_for('departments.list_departments') }}">← До списку</a>
+    <a class="btn btn-primary" href="{{ url_for('departments.create_department') }}">+ Додати відділ</a>
+    <a class="btn btn-primary" href="{{ url_for('departments.edit_department', department_id=department.id) }}">Редагувати</a>
+
+    {% if current_user.admin_role in ['super_admin', 'admin'] %}
+      <form method="post" action="{{ url_for('departments.archive_department', department_id=department.id) }}" style="display:inline;">
+        <button class="btn btn-danger" type="submit">Архівувати</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Загальне</h2>
+
+    <p><strong>Короткий опис:</strong> {{ department.short_description or "—" }}</p>
+
+    <p>
+      <strong>Повний опис та функціональність:</strong>
+      {% if department.full_description %}
+        <span id="full-description-preview">
+          {{ department.full_description[:280] }}{% if department.full_description|length > 280 %}...{% endif %}
+        </span>
+        <span id="full-description-full" class="hidden">{{ department.full_description }}</span>
+        {% if department.full_description|length > 280 %}
+          <button type="button" class="link-btn inline-btn" id="toggle-description-btn" onclick="toggleDescription()">Детальніше</button>
+        {% endif %}
+      {% else %}
+        —
+      {% endif %}
+    </p>
+
+    <p><strong>Тип:</strong> {{ department.department_type.name if department.department_type else "—" }}</p>
+    <p><strong>Розмір:</strong> {{ department.size_label or "—" }}</p>
+  </div>
+
+  <div class="card">
+    <h2>Структура</h2>
+    <p><strong>Головний відділ:</strong> {{ department.parent_department.name if department.parent_department else "—" }}</p>
+
+    <p><strong>Підвідділи:</strong></p>
+    <ul>
+      {% set child_status = namespace(has_items=false) %}
+      {% for item in department.child_departments %}
+        {% if not item.is_archived %}
+          {% set child_status.has_items = true %}
+          <li>{{ item.name }}</li>
+        {% endif %}
+      {% endfor %}
+      {% if not child_status.has_items %}
+        <li>Поки пусто</li>
+      {% endif %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Бренди</h2>
+    <ul>
+      {% for item in department.brand_links %}
+        <li>{{ item.brand.name }}</li>
+      {% else %}
+        <li>Поки пусто</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>GEO</h2>
+    <ul>
+      {% for item in department.geo_links %}
+        <li>{{ item.geo.name }}</li>
+      {% else %}
+        <li>Поки пусто</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Теги</h2>
+    <ul>
+      {% for item in department.tag_links %}
+        <li>{{ item.tag.name }}</li>
+      {% else %}
+        <li>Поки пусто</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Керівники</h2>
+    <ul>
+      {% for item in department.lead_links %}
+        <li>
+          {{ item.person.full_name }}
+          {% if item.person.position %} — {{ item.person.position }}{% endif %}
+        </li>
+      {% else %}
+        <li>Поки пусто</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Люди відділу</h2>
+    <ul>
+      {% set people_status = namespace(has_items=false) %}
+      {% for item in department.people %}
+        {% if not item.is_archived %}
+          {% set people_status.has_items = true %}
+          <li>{{ item.full_name }}{% if item.position %} — {{ item.position }}{% endif %}</li>
+        {% endif %}
+      {% endfor %}
+      {% if not people_status.has_items %}
+        <li>Поки пусто</li>
+      {% endif %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Контакти</h2>
+    <p><strong>Email:</strong> {{ department.email or "—" }}</p>
+    <p><strong>Telegram:</strong> {{ department.telegram or "—" }}</p>
+    <p><strong>Chat link:</strong> {{ department.chat_link or "—" }}</p>
+  </div>
+
+  <div class="card full-width">
+    <h2>Зв’язки</h2>
+    <ul>
+      {% set relation_status = namespace(has_items=false) %}
+
+      {% for rel in department.outgoing_relations %}
+        {% if not rel.is_archived %}
+          {% set relation_status.has_items = true %}
+          <li>
+            {{ rel.department_to.name }}
+            {% if rel.short_description %} — {{ rel.short_description }}{% endif %}
+            <span class="muted">(вихідний)</span>
+          </li>
+        {% endif %}
+      {% endfor %}
+
+      {% for rel in department.incoming_relations %}
+        {% if not rel.is_archived %}
+          {% set relation_status.has_items = true %}
+          <li>
+            {{ rel.department_from.name }}
+            {% if rel.short_description %} — {{ rel.short_description }}{% endif %}
+            <span class="muted">(вхідний)</span>
+          </li>
+        {% endif %}
+      {% endfor %}
+
+      {% if not relation_status.has_items %}
+        <li>Поки пусто</li>
+      {% endif %}
+    </ul>
+  </div>
+</div>
+
+<script>
+  function toggleDescription() {
+    const preview = document.getElementById("full-description-preview");
+    const full = document.getElementById("full-description-full");
+    const btn = document.getElementById("toggle-description-btn");
+
+    if (!preview || !full || !btn) return;
+
+    const isHidden = full.classList.contains("hidden");
+
+    if (isHidden) {
+      full.classList.remove("hidden");
+      preview.classList.add("hidden");
+      btn.textContent = "Сховати";
+    } else {
+      full.classList.add("hidden");
+      preview.classList.remove("hidden");
+      btn.textContent = "Детальніше";
+    }
+  }
+</script>
+
+{% endblock %}

@@ -1,0 +1,130 @@
+<div class="form-grid">
+  <div class="field">
+    <label>Назва відділу</label>
+    <input type="text" name="name" value="{{ department.name if department else '' }}" required>
+  </div>
+
+  <div class="field">
+    <label>Тип відділу</label>
+    <select name="department_type_id">
+      <option value="">-- Обрати --</option>
+      {% for item in department_types %}
+        <option value="{{ item.id }}"
+          {% if department and department.department_type_id == item.id %}selected{% endif %}>
+          {{ item.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Розмір</label>
+    <select name="size_label">
+      <option value="">-- Обрати --</option>
+      {% for item in size_options %}
+        <option value="{{ item }}"
+          {% if department and department.size_label == item %}selected{% endif %}>
+          {{ item }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Головний відділ</label>
+    <select name="parent_department_id">
+      <option value="">-- Немає --</option>
+      {% for item in departments %}
+        {% if not department or item.id != department.id %}
+          <option value="{{ item.id }}"
+            {% if department and department.parent_department_id == item.id %}selected{% endif %}>
+            {{ item.name }}
+          </option>
+        {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field full">
+    <label>Короткий опис</label>
+    <textarea name="short_description" rows="2">{{ department.short_description if department else '' }}</textarea>
+  </div>
+
+  <div class="field full">
+    <label>Повний опис та функціональність</label>
+    <textarea name="full_description" rows="5">{{ department.full_description if department else '' }}</textarea>
+  </div>
+
+  <div class="field">
+    <label>Бренди</label>
+    {% set selected_brand_ids = department.brand_links|map(attribute='brand_id')|list if department else [] %}
+    <select name="brand_ids" id="brand_ids" class="js-multi-select" multiple data-placeholder="Оберіть бренди">
+      {% for item in brands %}
+        <option value="{{ item.id }}" {% if item.id in selected_brand_ids %}selected{% endif %}>
+          {{ item.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label>GEO</label>
+    {% set selected_geo_ids = department.geo_links|map(attribute='geo_id')|list if department else [] %}
+    <select name="geo_ids" id="geo_ids" class="js-multi-select" multiple data-placeholder="Оберіть GEO">
+      {% for item in geos %}
+        <option value="{{ item.id }}" {% if item.id in selected_geo_ids %}selected{% endif %}>
+          {{ item.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Теги</label>
+    {% set selected_tag_ids = department.tag_links|map(attribute='tag_id')|list if department else [] %}
+    <select name="tag_ids" id="tag_ids" class="js-multi-select" multiple data-placeholder="Оберіть теги">
+      {% for item in tags %}
+        <option value="{{ item.id }}" {% if item.id in selected_tag_ids %}selected{% endif %}>
+          {{ item.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Керівники</label>
+    {% set selected_lead_ids = department.lead_links|map(attribute='person_id')|list if department else [] %}
+    <select name="lead_ids" id="lead_ids" class="js-multi-select" multiple data-placeholder="Оберіть керівників">
+      {% for item in people %}
+        {% set lead_status = namespace(is_lead=false) %}
+        {% for lead in item.lead_departments %}
+          {% if lead.lead_type in ["department_lead", "head", "teamlead", "tl"] %}
+            {% set lead_status.is_lead = true %}
+          {% endif %}
+        {% endfor %}
+
+        {% if lead_status.is_lead %}
+          <option value="{{ item.id }}" {% if item.id in selected_lead_ids %}selected{% endif %}>
+            {{ item.full_name }}{% if item.position %} — {{ item.position }}{% endif %}
+          </option>
+        {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Email</label>
+    <input type="text" name="email" value="{{ department.email if department else '' }}">
+  </div>
+
+  <div class="field">
+    <label>Telegram</label>
+    <input type="text" name="telegram" value="{{ department.telegram if department else '' }}">
+  </div>
+
+  <div class="field full">
+    <label>Chat link</label>
+    <input type="text" name="chat_link" value="{{ department.chat_link if department else '' }}">
+  </div>
+
+</div>

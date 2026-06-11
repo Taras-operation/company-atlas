@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% block title %}Історія{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Історія змін</h1>
+    <p class="muted">Журнал активності CRM системи</p>
+  </div>
+</div>
+
+<div class="card activity-card">
+
+  <div class="activity-feed">
+
+    {% for item in activity_items %}
+
+      <div class="activity-item">
+
+        <div class="activity-icon {{ item.badge }}">
+          {{ item.icon }}
+        </div>
+
+        <div class="activity-content">
+
+          <div class="activity-top-row">
+            <div class="activity-title">
+              <strong>{{ item.actor }}</strong>
+              {{ item.action_label|lower }}
+              {{ item.entity_label }}
+            </div>
+
+            <div class="activity-time">
+              {{ item.display_time }}
+            </div>
+          </div>
+
+          <div class="activity-entity">
+            {{ item.entity_name }}
+          </div>
+
+          {% if item.url %}
+            <div class="activity-actions">
+              <a class="btn btn-secondary btn-sm" href="{{ item.url }}">
+                Переглянути
+              </a>
+            </div>
+          {% endif %}
+
+        </div>
+      </div>
+
+    {% else %}
+
+      <div class="empty-state">
+        Поки немає активності
+      </div>
+
+    {% endfor %}
+
+  </div>
+</div>
+
+<style>
+  .activity-card {
+    margin-top:20px;
+  }
+
+  .activity-feed {
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+
+  .activity-item {
+    display:flex;
+    gap:16px;
+    align-items:flex-start;
+    padding:18px;
+    border:1px solid #e5e7eb;
+    border-radius:16px;
+    background:#fff;
+  }
+
+  .activity-icon {
+    width:42px;
+    height:42px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:700;
+    font-size:18px;
+    flex-shrink:0;
+  }
+
+  .badge-create {
+    background:#dcfce7;
+    color:#166534;
+  }
+
+  .badge-update {
+    background:#dbeafe;
+    color:#1d4ed8;
+  }
+
+  .badge-archive {
+    background:#fee2e2;
+    color:#991b1b;
+  }
+
+  .badge-restore {
+    background:#f3e8ff;
+    color:#7e22ce;
+  }
+
+  .badge-approve {
+    background:#d1fae5;
+    color:#065f46;
+  }
+
+  .badge-reject {
+    background:#ffedd5;
+    color:#9a3412;
+  }
+
+  .badge-default {
+    background:#f3f4f6;
+    color:#374151;
+  }
+
+  .activity-content {
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+
+  .activity-top-row {
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    align-items:center;
+  }
+
+  .activity-title {
+    color:#374151;
+    font-size:14px;
+  }
+
+  .activity-time {
+    color:#9ca3af;
+    font-size:13px;
+    white-space:nowrap;
+  }
+
+  .activity-entity {
+    font-size:16px;
+    font-weight:700;
+    color:#111827;
+  }
+
+  .activity-actions {
+    margin-top:4px;
+  }
+
+  .btn-sm {
+    padding:8px 12px;
+    font-size:13px;
+  }
+
+  .empty-state {
+    padding:30px;
+    text-align:center;
+    color:#9ca3af;
+  }
+</style>
+
+{% endblock %}

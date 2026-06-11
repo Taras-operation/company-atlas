@@ -1,0 +1,155 @@
+
+<div class="field">
+  <label>Відділ A / Звідки</label>
+  <select name="department_from_id" id="department_from_id" required>
+    <option value="">— Обрати відділ —</option>
+    {% for item in departments_from %}
+      <option value="{{ item.id }}"
+        {% if relation is defined and relation.department_from_id == item.id %}selected{% endif %}>
+        {{ item.name }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="field">
+  <label>Відділ B / Куди</label>
+  <select name="department_to_id" id="department_to_id" required>
+    <option value="">— Обрати відділ —</option>
+    {% for item in departments_to %}
+      <option value="{{ item.id }}"
+        {% if relation is defined and relation.department_to_id == item.id %}selected{% endif %}>
+        {{ item.name }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="field">
+  <label>Відповідальний з боку A</label>
+  <select name="responsible_person_from_id" id="responsible_person_from_id">
+    <option value="">— Не вказано —</option>
+    {% for item in people_from %}
+      <option value="{{ item.id }}"
+              data-department-id="{{ item.department_id or '' }}"
+              {% if relation is defined and relation.responsible_person_from_id == item.id %}selected{% endif %}>
+        {{ item.full_name }}{% if item.position %} — {{ item.position }}{% endif %}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="field">
+  <label>Відповідальний з боку B</label>
+  <select name="responsible_person_to_id" id="responsible_person_to_id">
+    <option value="">— Не вказано —</option>
+    {% for item in people_to %}
+      <option value="{{ item.id }}"
+              data-department-id="{{ item.department_id or '' }}"
+              {% if relation is defined and relation.responsible_person_to_id == item.id %}selected{% endif %}>
+        {{ item.full_name }}{% if item.position %} — {{ item.position }}{% endif %}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="field full">
+  <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:16px;">
+    <div class="field">
+      <label>Напрямок</label>
+      <select name="direction">
+        {% set current_direction = relation.direction if relation is defined else "from_to" %}
+        <option value="from_to" {% if current_direction == "from_to" %}selected{% endif %}>A → B</option>
+        <option value="to_from" {% if current_direction == "to_from" %}selected{% endif %}>B → A</option>
+        <option value="bidirectional" {% if current_direction == "bidirectional" %}selected{% endif %}>A ↔ B</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Сила зв’язку</label>
+      <select name="strength">
+        {% set current_strength = relation.strength if relation is defined else "medium" %}
+        <option value="low" {% if current_strength == "low" %}selected{% endif %}>Слабка</option>
+        <option value="medium" {% if current_strength == "medium" %}selected{% endif %}>Середня</option>
+        <option value="high" {% if current_strength == "high" %}selected{% endif %}>Сильна</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Статус</label>
+      <select name="status">
+        {% set current_status = relation.status if relation is defined else "active" %}
+        <option value="active" {% if current_status == "active" %}selected{% endif %}>Активний</option>
+        <option value="draft" {% if current_status == "draft" %}selected{% endif %}>Чернетка</option>
+        <option value="paused" {% if current_status == "paused" %}selected{% endif %}>Пауза</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="field full">
+  <label>Короткий опис</label>
+  <input type="text" name="short_description"
+         value="{{ relation.short_description if relation is defined and relation.short_description else '' }}"
+         placeholder="Наприклад: передача лідів, погодження бюджетів, операційна підтримка">
+</div>
+
+
+<div class="field full">
+  <h4>Налаштування для візуалізації</h4>
+
+  <label class="checkbox-row">
+    <input type="checkbox" name="show_on_map"
+      {% if relation is not defined or relation.show_on_map %}checked{% endif %}>
+    Показувати на карті / візуалізації
+  </label>
+</div>
+
+<script>
+  function filterResponsiblePeople(departmentSelectId, personSelectId) {
+    const departmentSelect = document.getElementById(departmentSelectId);
+    const personSelect = document.getElementById(personSelectId);
+
+    if (!departmentSelect || !personSelect) return;
+
+    const selectedDepartmentId = departmentSelect.value;
+
+    Array.from(personSelect.options).forEach((option) => {
+      if (!option.value) {
+        option.hidden = false;
+        return;
+      }
+
+      const optionDepartmentId = option.dataset.departmentId;
+      option.hidden = optionDepartmentId !== selectedDepartmentId;
+    });
+
+    const selectedOption = personSelect.options[personSelect.selectedIndex];
+
+    if (selectedOption && selectedOption.hidden) {
+      personSelect.value = "";
+    }
+
+    personSelect.disabled = !selectedDepartmentId;
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const departmentFrom = document.getElementById("department_from_id");
+    const departmentTo = document.getElementById("department_to_id");
+
+    filterResponsiblePeople("department_from_id", "responsible_person_from_id");
+    filterResponsiblePeople("department_to_id", "responsible_person_to_id");
+
+    if (departmentFrom) {
+      departmentFrom.addEventListener("change", function () {
+        filterResponsiblePeople("department_from_id", "responsible_person_from_id");
+      });
+    }
+
+    if (departmentTo) {
+      departmentTo.addEventListener("change", function () {
+        filterResponsiblePeople("department_to_id", "responsible_person_to_id");
+      });
+    }
+  });
+</script>
