@@ -13,6 +13,7 @@ from .relation import DepartmentRelation
 from .admin_user import AdminUser, VisualizationUser
 from .viewer_user import ViewerUser
 from .audit import AuditLog
+from .map_layout import MapLayout
 
 __all__ = [
     "DepartmentType",
@@ -40,4 +41,5 @@ __all__ = [
     "ViewerUser",
     "AuditLog",
     "VisibilityChangeRequest",
+    "MapLayout",
 ]

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Component, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import ELK from 'elkjs/lib/elk.bundled.js'
 import ReactFlow, {
@@ -9,8 +9,32 @@ import ReactFlow, {
 } from 'reactflow'
 
 import './App.css'
-import MetroMap from './components/MetroMap/MetroMap'
+import MetroRefMap from './components/MetroMap/MetroRefMap'
 import OrbitMap from './components/OrbitMap/OrbitMap'
+
+// Catches render errors in the map so a crash shows a readable message instead of a blank screen.
+class MapErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(error) { return { error } }
+  componentDidUpdate(prev) { if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null }) }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, background: '#020817' }}>
+          <div style={{ maxWidth: 520, color: '#FCA5A5', fontFamily: 'Inter, sans-serif' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8 }}>⚠ Помилка відображення карти</div>
+            <div style={{ fontSize: 12, color: '#E2E8F0', whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 14 }}>{String(this.state.error?.message || this.state.error)}</div>
+            <button onClick={() => { this.setState({ error: null }); this.props.onReset?.() }}
+              style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(148,163,184,0.3)', background: 'rgba(15,23,42,0.8)', color: '#93C5FD', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              Скинути вид
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const strengthStyles = {
   low: {
@@ -969,7 +993,117 @@ function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [showLegendPopover, setShowLegendPopover] = useState(false)
   const [mapResetKey, setMapResetKey] = useState(0)
-  const [typeFilter, setTypeFilter] = useState({ regional: true, service: true })
+  const [hiddenTypes, setHiddenTypes] = useState({}) // { [typeName]: true } => hidden
+  const [metroLayout, setMetroLayout] = useState('geo') // 'geo' | 'type' | 'classic'
+  const [constructorMode, setConstructorMode] = useState(false)
+  const [constructorTool, setConstructorTool] = useState('move') // 'move' | 'turn' | 'branch'
+  const [showConstructorMenu, setShowConstructorMenu] = useState(false)
+  const [selectedConstructorElement, setSelectedConstructorElement] = useState(null) // {type:'wp'|'branch', lineId, idx, branchId}
+  const [lineGeometry, setLineGeometry] = useState({})
+  const geometryHistory = useRef([])
+  const [geometryHistoryLen, setGeometryHistoryLen] = useState(0)
+
+  const layoutKey = viewMode === 'orbit' ? 'orbit' : `metro-${metroLayout}`
+
+  useEffect(() => {
+    if (viewMode === 'matrix') return
+    let cancelled = false
+    axios.get(`/visualization/api/layout/${layoutKey}`)
+      .then((r) => { if (!cancelled) setLineGeometry(r.data?.data || {}) })
+      .catch(() => { if (!cancelled) setLineGeometry({}) })
+    return () => { cancelled = true }
+  }, [layoutKey, viewMode])
+
+  const saveLineGeometry = async (newGeo, opts = {}) => {
+    if (!opts.skipHistory) {
+      // push the current state onto the undo stack
+      geometryHistory.current = [...geometryHistory.current, lineGeometry].slice(-30)
+      setGeometryHistoryLen(geometryHistory.current.length)
+    }
+    setLineGeometry(newGeo)
+    try {
+      await axios.post(`/visualization/api/layout/${layoutKey}`, { data: newGeo })
+    } catch (e) {
+      console.error('save geometry failed', e)
+    }
+  }
+
+  const undoGeometry = async () => {
+    if (!geometryHistory.current.length) return
+    const prev = geometryHistory.current[geometryHistory.current.length - 1]
+    geometryHistory.current = geometryHistory.current.slice(0, -1)
+    setGeometryHistoryLen(geometryHistory.current.length)
+    setLineGeometry(prev)
+    try {
+      await axios.post(`/visualization/api/layout/${layoutKey}`, { data: prev })
+    } catch (e) {
+      console.error('undo save failed', e)
+    }
+  }
+
+  // Reset history when switching layout
+  useEffect(() => {
+    geometryHistory.current = []
+    setGeometryHistoryLen(0)
+    setSelectedConstructorElement(null)
+  }, [layoutKey])
+
+  const deleteSelectedConstructorElement = async () => {
+    const sel = selectedConstructorElement
+    if (!sel) return
+    let newGeo = lineGeometry
+    if (sel.type === 'wp') {
+      const arr = [...(lineGeometry.waypoints?.[sel.lineId] || [])]
+      arr.splice(sel.idx, 1)
+      newGeo = { ...lineGeometry, waypoints: { ...(lineGeometry.waypoints || {}), [sel.lineId]: arr } }
+    } else if (sel.type === 'branch') {
+      newGeo = { ...lineGeometry, branches: (lineGeometry.branches || []).filter((b) => b.id !== sel.branchId) }
+    }
+    await saveLineGeometry(newGeo)
+    setSelectedConstructorElement(null)
+  }
+
+  // Delete-key handler
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && constructorMode && selectedConstructorElement) {
+        const tag = e.target?.tagName
+        if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+        e.preventDefault()
+        deleteSelectedConstructorElement()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && constructorMode) {
+        e.preventDefault()
+        undoGeometry()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [constructorMode, selectedConstructorElement, lineGeometry])
+
+  const saveDepartmentPosition = async (departmentId, mapX, mapY) => {
+    try {
+      await axios.post('/visualization/api/department-position', {
+        department_id: Number(departmentId),
+        map_x: mapX,
+        map_y: mapY,
+      })
+    } catch (e) {
+      console.error('save position failed', e)
+    }
+  }
+
+  const resetDepartmentPosition = async (departmentId) => {
+    try {
+      await axios.post('/visualization/api/department-position', {
+        department_id: Number(departmentId),
+        reset: true,
+      })
+      window.location.reload()
+    } catch (e) {
+      console.error('reset position failed', e)
+    }
+  }
   const isPublicView = payload?.mode === 'public'
   const currentVisualizationUser = payload?.user || null
 
@@ -1272,21 +1406,26 @@ function App() {
     return c
   }, [payload])
 
+  // Distinct department types present (each payload line == a type), with its colour.
+  const metroTypes = useMemo(() => {
+    if (!payload) return []
+    const seen = new Map()
+    payload.lines.forEach((line) => {
+      const name = line.name || 'Без типу'
+      if (!seen.has(name)) seen.set(name, line.color || '#94A3B8')
+    })
+    return Array.from(seen.entries()).map(([name, color]) => ({ name, color }))
+  }, [payload])
+
   const metroPayload = useMemo(() => {
     if (!payload) return null
-    if (typeFilter.regional && typeFilter.service) return payload
+    const anyHidden = Object.values(hiddenTypes).some(Boolean)
+    if (!anyHidden) return payload
     return {
       ...payload,
-      lines: payload.lines.filter((line) => {
-        const t = (line.name || '').toLowerCase()
-        const isReg = t.includes('регіон') || t.includes('regional')
-        const isSvc = t.includes('сервіс') || t.includes('service')
-        if (isReg) return typeFilter.regional
-        if (isSvc) return typeFilter.service
-        return true
-      }),
+      lines: payload.lines.filter((line) => !hiddenTypes[line.name || 'Без типу']),
     }
-  }, [payload, typeFilter])
+  }, [payload, hiddenTypes])
 
   const selectedDepartmentName = useMemo(() => {
     if (!selectedDepartmentId || !payload) return null
@@ -1769,21 +1908,21 @@ function App() {
       <section style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', background: '#020817' }}>
         <header
           style={{
-            height: 62,
             minHeight: 62,
             borderBottom: '1px solid rgba(30, 41, 59, 0.9)',
             background: 'rgba(6, 16, 31, 0.94)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 14,
-            padding: '0 20px',
+            gap: 8,
+            padding: '8px 14px',
             position: 'relative',
+            flexWrap: 'nowrap',
           }}
         >
           {/* Left: mode + breadcrumb */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flexShrink: 1 }}>
-            <div style={{ minWidth: 0, flexShrink: 1, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexShrink: 0 }}>
+            <div style={{ flexShrink: 0 }}>
               <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.18em', color: '#334155', lineHeight: 1 }}>
                 Visualization Mode
               </div>
@@ -1827,31 +1966,49 @@ function App() {
               </button>
             )}
 
-            {/* Type filter for Metro */}
+            {/* Type filter for Metro — compact dot toggles, one per type (label in tooltip) */}
             {viewMode === 'metro' && (
-              <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                {[
-                  { key: 'regional', label: 'Регіональні', color: '#3B82F6' },
-                  { key: 'service',  label: 'Сервісні',    color: '#22C55E' },
-                ].map(({ key, label, color }) => (
-                  <button
-                    key={key}
-                    onClick={() => setTypeFilter((f) => ({ ...f, [key]: !f[key] }))}
-                    style={{
-                      padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                      cursor: 'pointer',
-                      border: `1px solid ${typeFilter[key] ? color + '55' : 'rgba(148,163,184,0.14)'}`,
-                      background: typeFilter[key] ? color + '18' : 'transparent',
-                      color: typeFilter[key] ? color : '#475569',
-                      transition: 'all 120ms',
-                      display: 'flex', alignItems: 'center', gap: 5,
-                    }}
-                  >
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: typeFilter[key] ? color : '#334155', flexShrink: 0 }} />
-                    {label}
-                  </button>
-                ))}
+              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                {metroTypes.map(({ name, color }) => {
+                  const on = !hiddenTypes[name]
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => setHiddenTypes((h) => ({ ...h, [name]: !h[name] }))}
+                      title={name}
+                      style={{
+                        width: 30, height: 30, borderRadius: 8, cursor: 'pointer',
+                        border: `1px solid ${on ? color + '55' : 'rgba(148,163,184,0.14)'}`,
+                        background: on ? color + '18' : 'transparent',
+                        transition: 'all 120ms',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <span style={{ width: 9, height: 9, borderRadius: '50%', background: on ? color : '#334155' }} />
+                    </button>
+                  )
+                })}
               </div>
+            )}
+
+            {/* Metro layout switcher (compact dropdown to save header space) */}
+            {viewMode === 'metro' && (
+              <select
+                value={metroLayout}
+                onChange={(e) => setMetroLayout(e.target.value)}
+                title="Тип карти Metro"
+                style={{
+                  flexShrink: 0,
+                  padding: '5px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  border: '1px solid rgba(148,163,184,0.18)', borderRadius: 8,
+                  background: 'rgba(59,130,246,0.14)',
+                  color: '#93C5FD',
+                  outline: 'none',
+                }}
+              >
+                <option value="geo">За GEO</option>
+                <option value="type">За типом</option>
+              </select>
             )}
           </div>
 
@@ -1859,8 +2016,9 @@ function App() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              flexShrink: 0,
+              gap: 6,
+              flexShrink: 1,
+              minWidth: 0,
             }}
           >
             <div style={{ position: 'relative' }}>
@@ -1868,15 +2026,16 @@ function App() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 type="text"
-                placeholder="Пошук відділу..."
+                placeholder="Пошук..."
                 style={{
-                  width: 200,
-                  borderRadius: 12,
+                  width: 138,
+                  minWidth: 90,
+                  borderRadius: 10,
                   border: '1px solid rgba(148, 163, 184, 0.24)',
                   background: '#020617',
                   color: '#E2E8F0',
                   fontSize: 13,
-                  padding: '9px 12px',
+                  padding: '8px 10px',
                   outline: 'none',
                 }}
               />
@@ -1943,7 +2102,7 @@ function App() {
             <select
               value={selectedBrandId}
               onChange={(event) => setSelectedBrandId(event.target.value)}
-              style={{ minWidth: 120, borderRadius: 12, border: '1px solid rgba(148, 163, 184, 0.24)', background: '#020617', color: '#E2E8F0', fontSize: 13, padding: '9px 12px', outline: 'none' }}
+              style={{ minWidth: 96, borderRadius: 12, border: '1px solid rgba(148, 163, 184, 0.24)', background: '#020617', color: '#E2E8F0', fontSize: 12, padding: '8px 9px', outline: 'none' }}
             >
               <option value="">All brands</option>
               {payload.filters?.brands?.map((brand) => (
@@ -1955,7 +2114,7 @@ function App() {
               <select
                 value={selectedGeoId}
                 onChange={(event) => setSelectedGeoId(event.target.value)}
-                style={{ minWidth: 120, borderRadius: 12, border: '1px solid rgba(148, 163, 184, 0.24)', background: '#020617', color: '#E2E8F0', fontSize: 13, padding: '9px 12px', outline: 'none' }}
+                style={{ minWidth: 96, borderRadius: 12, border: '1px solid rgba(148, 163, 184, 0.24)', background: '#020617', color: '#E2E8F0', fontSize: 12, padding: '8px 9px', outline: 'none' }}
               >
                 <option value="">All GEO</option>
                 {payload.filters?.geos?.map((geo) => (
@@ -1974,6 +2133,90 @@ function App() {
               >
                 Reset
               </button>
+            )}
+
+            {/* Constructor (layout edit) menu — admin only */}
+            {payload?.can_edit_layout && viewMode !== 'matrix' && (
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <button
+                  onClick={() => setShowConstructorMenu((v) => !v)}
+                  title="Конструктор карти"
+                  style={{
+                    padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    border: constructorMode ? '1px solid rgba(34,197,94,0.5)' : '1px solid rgba(148,163,184,0.16)',
+                    background: constructorMode ? 'rgba(34,197,94,0.16)' : 'rgba(15,23,42,0.6)',
+                    color: constructorMode ? '#86EFAC' : '#94A3B8',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  {constructorMode ? '✓ Конструктор' : '✥ Конструктор'} ▾
+                </button>
+
+                {showConstructorMenu && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 200, width: 230,
+                    background: 'rgba(6,16,31,0.98)', backdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(148,163,184,0.18)', borderRadius: 12, padding: 6,
+                    boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+                  }}>
+                    {[
+                      { tool: 'move', icon: '✥', label: 'Перемістити станції', hint: 'Тягни будь-яку станцію — лінія йде за нею. Підвідділи рухаються разом із батьківською станцією. 2× клік — скинути. На гілку — прив\'язати.' },
+                      { tool: 'turn', icon: '↳', label: 'Додати поворот лінії', hint: 'Клік на лінію — додати точку-вигин. 2× клік по точці — прибрати.' },
+                      { tool: 'branch', icon: '⎇', label: 'Додати відгалуження', hint: 'Клік на лінію — створити гілку. Тягни квадратик-кінець. 2× клік — видалити.' },
+                      { tool: 'erase', icon: '🗑', label: 'Видалити лінію / гілку', hint: 'Клік на назву лінії — прибрати всю лінію. Клік на відгалуження або точку-вигин — видалити їх. Станції видалити не можна.' },
+                    ].map(({ tool, icon, label, hint }) => {
+                      const isActive = constructorMode && constructorTool === tool
+                      return (
+                        <button
+                          key={tool}
+                          onClick={() => { setConstructorTool(tool); setConstructorMode(true); setShowConstructorMenu(false) }}
+                          title={hint}
+                          style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: isActive ? 'rgba(34,197,94,0.16)' : 'transparent', color: isActive ? '#86EFAC' : '#E2E8F0', display: 'flex', alignItems: 'center', gap: 8 }}
+                        >
+                          {icon} {label}
+                        </button>
+                      )
+                    })}
+                    <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', margin: '4px 0' }} />
+                    {constructorMode && (lineGeometry.hidden?.length > 0) && (
+                      <button
+                        onClick={() => { saveLineGeometry({ ...lineGeometry, hidden: [] }); setShowConstructorMenu(false) }}
+                        title="Повернути всі приховані лінії та станції"
+                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: '#93C5FD', display: 'flex', alignItems: 'center', gap: 8 }}
+                      >
+                        ♻ Показати приховані <span style={{ marginLeft: 'auto', fontSize: 10, color: '#64748B' }}>{lineGeometry.hidden.length}</span>
+                      </button>
+                    )}
+                    {constructorMode && (
+                      <button
+                        onClick={() => { undoGeometry(); setShowConstructorMenu(false) }}
+                        disabled={geometryHistoryLen === 0}
+                        title="Скасувати останню зміну (Cmd+Z)"
+                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: geometryHistoryLen === 0 ? 'not-allowed' : 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: geometryHistoryLen === 0 ? '#475569' : '#E2E8F0', display: 'flex', alignItems: 'center', gap: 8 }}
+                      >
+                        ↶ Назад {geometryHistoryLen > 0 && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#64748B' }}>{geometryHistoryLen}</span>}
+                      </button>
+                    )}
+                    {constructorMode && selectedConstructorElement && (
+                      <button
+                        onClick={() => { deleteSelectedConstructorElement(); setShowConstructorMenu(false) }}
+                        title="Видалити вибраний елемент (Delete)"
+                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'rgba(239,68,68,0.1)', color: '#FCA5A5', display: 'flex', alignItems: 'center', gap: 8 }}
+                      >
+                        🗑 Видалити {selectedConstructorElement.type === 'wp' ? 'поворот' : 'відгалуження'}
+                      </button>
+                    )}
+                    {constructorMode && (
+                      <button
+                        onClick={() => { setConstructorMode(false); setSelectedConstructorElement(null); setShowConstructorMenu(false) }}
+                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: '#FCA5A5', display: 'flex', alignItems: 'center', gap: 8 }}
+                      >
+                        ✕ Вийти з конструктора
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Legend popover button */}
@@ -2135,9 +2378,11 @@ function App() {
         <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
           <main style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', background: '#020817' }}>
             {viewMode === 'metro' && (
-              <MetroMap
-                key={`metro-${mapResetKey}-${typeFilter.regional}-${typeFilter.service}`}
+              <MapErrorBoundary resetKey={`${mapResetKey}-${metroLayout}`} onReset={() => { saveLineGeometry({ ...lineGeometry, lineEnds: undefined }); setMapResetKey((k) => k + 1) }}>
+              <MetroRefMap
+                key={`metro2-${mapResetKey}-${metroLayout}-${Object.keys(hiddenTypes).filter((k) => hiddenTypes[k]).sort().join(',')}`}
                 payload={metroPayload}
+                layoutMode={metroLayout}
                 selectedDepartmentId={selectedDepartmentId}
                 setSelectedDepartmentId={(departmentId) => {
                   setSelectedDepartmentId(departmentId)
@@ -2148,7 +2393,16 @@ function App() {
                   setHoveredRelationId(null)
                 }}
                 setHoveredDepartmentId={setHoveredDepartmentId}
+                constructorMode={constructorMode}
+                constructorTool={constructorTool}
+                geometry={lineGeometry}
+                onSaveGeometry={saveLineGeometry}
+                onSavePosition={saveDepartmentPosition}
+                onResetPosition={resetDepartmentPosition}
+                selectedConstructorElement={selectedConstructorElement}
+                onSelectConstructorElement={setSelectedConstructorElement}
               />
+              </MapErrorBoundary>
             )}
 
             {viewMode === 'orbit' && (
@@ -2166,6 +2420,9 @@ function App() {
                     setHoveredRelationId(null)
                   }}
                   setHoveredDepartmentId={setHoveredDepartmentId}
+                  constructorMode={constructorMode}
+                  onSavePosition={saveDepartmentPosition}
+                  onResetPosition={resetDepartmentPosition}
                 />
 
                 {payload && orbitNodes.length === 0 && (
