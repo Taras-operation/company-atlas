@@ -1138,6 +1138,11 @@ function App() {
   }
 
   const handleVisualizationLogout = async () => {
+    // Admins are authenticated via the admin panel (Flask-Login); log them out there.
+    if (payload?.is_admin) {
+      window.location.href = '/logout'
+      return
+    }
     try {
       await axios.post('/api/visualization-logout')
     } catch (error) {
@@ -2336,16 +2341,16 @@ function App() {
                   fontSize: 11, fontWeight: 900, color: '#fff', flexShrink: 0,
                   letterSpacing: '0.02em',
                 }}>
-                  {(currentVisualizationUser?.display_name || currentVisualizationUser?.username || 'U')
+                  {(currentVisualizationUser?.display_name || currentVisualizationUser?.username || (payload?.is_admin ? 'AD' : 'U'))
                     .slice(0, 2).toUpperCase()}
                 </div>
                 {/* Name + role */}
                 <div style={{ lineHeight: 1.3 }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: '#86EFAC', whiteSpace: 'nowrap' }}>
-                    {currentVisualizationUser?.display_name || currentVisualizationUser?.username}
+                    {currentVisualizationUser?.display_name || currentVisualizationUser?.username || (payload?.is_admin ? 'Адміністратор' : 'Гість')}
                   </div>
                   <div style={{ fontSize: 10, color: '#64748B', whiteSpace: 'nowrap' }}>
-                    {currentVisualizationUser?.role || 'viewer'}
+                    {payload?.is_admin ? (payload.admin_role || 'admin') : (currentVisualizationUser?.role || 'viewer')}
                   </div>
                 </div>
                 {/* Logout */}

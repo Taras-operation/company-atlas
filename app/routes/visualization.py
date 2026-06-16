@@ -44,6 +44,8 @@ def visualization_map_api():
         viewer_user=visualization_user,
     )
     payload["mode"] = "public" if public_view else "private"
+    payload["is_admin"] = bool(is_admin_preview)
+    payload["admin_role"] = getattr(current_user, "admin_role", None) if is_admin_preview else None
     payload["can_edit_layout"] = bool(
         is_admin_preview and getattr(current_user, "admin_role", None) in ("super_admin", "admin")
     )
