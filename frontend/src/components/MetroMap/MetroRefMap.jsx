@@ -103,6 +103,7 @@ function ZoomControls() {
 export default function MetroRefMap({ payload, selectedDepartmentId, setSelectedDepartmentId, setHoveredDepartmentId, layoutMode = 'geo', constructorMode = false, constructorTool = 'move', geometry = {}, onSaveGeometry, onSavePosition, onResetPosition, selectedConstructorElement, onSelectConstructorElement }) {
   const [hoveredId, setHoveredId] = useState(null)
   const [overrides, setOverrides] = useState({}) // live drag positions {id:{x,y}}
+  const [expandedId, setExpandedId] = useState(null) // ring station whose sub-departments are popped out
   const svgRef = useRef(null)
   const dragRef = useRef(null) // {id}
   const activeId = hoveredId || selectedDepartmentId
@@ -379,6 +380,18 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
     const N = Math.max(1, lineGroups.length)
     const hidden = new Set((geometry?.hidden || []).map(String))
 
+    // The line name is anchored to the LAST station of the line (its outward direction),
+    // so it sits at that station's edge and follows it when moved in the constructor.
+    const makeNameAnchor = (sIds, fdrs) => {
+      let aid = sIds && sIds.length ? sIds[sIds.length - 1] : null
+      if (aid == null && fdrs && fdrs.length) {
+        const last = fdrs[fdrs.length - 1]
+        aid = last && last.ids && last.ids.length ? last.ids[last.ids.length - 1] : null
+      }
+      const ap = aid != null ? pos.get(String(aid)) : null
+      return ap ? { id: String(aid), dx: ap.dx || 0, dy: ap.dy || 0 } : null
+    }
+
     // ===== TYPE MODE: each type = one line to its own side (comb / vertical) =====
     if (layoutMode === 'type') {
       const SIDES = [
@@ -473,7 +486,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
           if (pts.length) nameAt = { x: pts[pts.length - 1].x, y: pts[pts.length - 1].y - 22 }
         }
 
-        rayPaths.push({ id: g.id, name: g.name, color: g.color, points: pts, trunk, feeders, spineIds, nameAt })
+        rayPaths.push({ id: g.id, name: g.name, color: g.color, points: pts, trunk, feeders, spineIds, nameAt, nameAnchor: makeNameAnchor(spineIds, feeders) })
       })
 
       return { positions: pos, rays: rayPaths }
@@ -484,12 +497,55 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
     const START = 150
     const GEO_BRANCH = 54 // sub-department branch step (smaller than the main spine)
 
-    // Place a root's sub-departments as a small branch off the root, perpendicular to the spine.
+    // Regional lines: sub-departments as a small branch off the root (always visible).
     const placeGeoChildren = (root, x, y, perp, color) => {
       childrenOf(root.id).filter((k) => !hidden.has(String(k.id))).forEach((kid, ki) => {
         const bx = x + perp[0] * GEO_BRANCH * (ki + 1)
         const by = y + perp[1] * GEO_BRANCH * (ki + 1)
         pos.set(String(kid.id), { x: bx, y: by, color, station: kid, dx: perp[0], dy: perp[1], isRoot: false, branchFrom: { x, y } })
+      })
+    }
+
+    // Ring lines (Сервісний / Баинг): sub-departments are hidden until the parent is
+    // clicked, then they pop out in a small circle around it.
+    const placeRingChildren = (root, x, y, color) => {
+      const kids = childrenOf(root.id).filter((k) => !hidden.has(String(k.id)))
+      if (String(root.id) !== String(expandedId) || !kids.length) return
+      const rr = 46 + Math.min(28, kids.length * 3)
+      const stepA = (2 * Math.PI) / kids.length
+      kids.forEach((kid, ki) => {
+        const a = ki * stepA - Math.PI / 2
+        const ux = Math.cos(a), uy = Math.sin(a)
+        pos.set(String(kid.id), { x: x + ux * rr, y: y + uy * rr, color, station: kid, dx: ux, dy: uy, isRoot: false, branchFrom: { x, y } })
+      })
+    }
+
+    // Functional (non-regional) lines wrap around HQ as full concentric rings. Each ring is
+    // placed on a radius slot HALFWAY BETWEEN regional station rings (so ring stations never
+    // share a radius with spoke stations), and gets its own angular phase (so its stations
+    // don't sit on the spokes and don't line up radially with the other rings). Fixed order:
+    // Баинг innermost, Сервісний next, then the rest. As stations grow, a ring jumps to the
+    // next free slot — rings never overlap and stay grabbable in the constructor.
+    const ringInfoById = {}
+    {
+      const MIN_SPACING = 58
+      const slotR = (k) => START + STEP * (k + 0.5) // between the regional station rings
+      const ringOrder = (name) => {
+        const t = (name || '').toLowerCase()
+        if (t.includes('баинг') || t.includes('баінг') || t.includes('baing') || t.includes('buying')) return 0
+        if (t.includes('сервіс') || t.includes('сервис') || t.includes('service')) return 1
+        return 2
+      }
+      const svc = lineGroups
+        .filter((g) => g.isService)
+        .map((g) => ({ id: g.id, n: g.roots.filter((s) => !hidden.has(String(s.id))).length, ord: ringOrder(g.name), name: g.name || '' }))
+        .filter((x) => x.n > 0)
+        .sort((a, b) => (a.ord - b.ord) || (a.n - b.n) || a.name.localeCompare(b.name))
+      let slot = 0
+      svc.forEach(({ id, n }, ringIdx) => {
+        while ((2 * Math.PI * slotR(slot)) / n < MIN_SPACING) slot += 1 // enough room for this ring's stations
+        ringInfoById[id] = { R: slotR(slot), startA: -Math.PI / 2 + 0.22 + ringIdx * 0.5 }
+        slot += 1
       })
     }
 
@@ -499,24 +555,24 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       const roots = g.roots.filter((s) => !hidden.has(String(s.id)))
       const count = roots.length
       if (!count) return // whole line deleted
-      let pts = [{ x: CX, y: CY }]
+      const isRing = Boolean(g.isService)
+      let pts = isRing ? [] : [{ x: CX, y: CY }]
       const spineIds = roots.map((s) => String(s.id))
 
       if (g.isService) {
-        // Smooth arc: spread stations to close into a near-full ring (~330°) when there
-        // are enough of them, instead of leaving a big empty sector ("half circle missing").
-        let heading = Math.atan2(DIRS8[baseDir][1], DIRS8[baseDir][0])
-        const curvature = Math.min(0.36, (2 * Math.PI * 0.92) / Math.max(1, count))
-        let x = CX + Math.cos(heading) * START
-        let y = CY + Math.sin(heading) * START
-        roots.forEach((s) => {
-          const ux = Math.cos(heading), uy = Math.sin(heading)
-          pos.set(String(s.id), { x, y, color: g.color, station: s, dx: ux, dy: uy, isRoot: true, lineId: g.id })
+        // A full circle centred on HQ; stations evenly spaced, sub-departments branch outward.
+        const info = ringInfoById[g.id] || { R: 200, startA: -Math.PI / 2 }
+        const R = info.R
+        const angleStep = (2 * Math.PI) / count
+        const startA = info.startA // phased so stations avoid spokes / other rings
+        roots.forEach((s, i) => {
+          const a = startA + i * angleStep
+          const ux = Math.cos(a), uy = Math.sin(a)
+          const x = CX + ux * R, y = CY + uy * R
+          const childCount = childrenOf(s.id).filter((k) => !hidden.has(String(k.id))).length
+          pos.set(String(s.id), { x, y, color: g.color, station: s, dx: ux, dy: uy, isRoot: true, lineId: g.id, expandable: true, childCount })
           pts.push({ x, y })
-          placeGeoChildren(s, x, y, [-uy, ux], g.color)
-          x += ux * STEP
-          y += uy * STEP
-          heading += curvature
+          placeRingChildren(s, x, y, g.color) // children only when this station is expanded
         })
       } else {
         const BEND_EVERY = 3
@@ -546,11 +602,11 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       }
 
       const lastP = pts[pts.length - 1]
-      rayPaths.push({ id: g.id, name: g.name, color: g.color, points: pts, trunk: [], feeders: [], spineIds, nameAt: lastP ? { x: lastP.x, y: lastP.y - 22 } : null })
+      rayPaths.push({ id: g.id, name: g.name, color: g.color, points: pts, trunk: [], feeders: [], spineIds, ring: isRing, nameAt: lastP ? { x: lastP.x, y: lastP.y - 22 } : null, nameAnchor: makeNameAnchor(spineIds, null) })
     })
 
     return { positions: pos, rays: rayPaths }
-  }, [lineGroups, layoutMode, childrenByParent, geometry])
+  }, [lineGroups, layoutMode, childrenByParent, geometry, expandedId])
 
   const connectedIds = useMemo(() => {
     const set = new Set()
@@ -585,7 +641,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
               <filter id="mr-glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
             </defs>
 
-            <rect width={W} height={H} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null) }} />
+            <rect width={W} height={H} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null); setExpandedId(null) }} />
             <pattern id="mr-dots" x="0" y="0" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill="rgba(148,163,184,0.06)" /></pattern>
             <rect width={W} height={H} fill="url(#mr-dots)" />
 
@@ -609,8 +665,12 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
                 ))}
                 {/* straight spine (up/down/diagonal/geo) — drawn through live stations, with waypoints */}
                 {(() => {
+                  const stationPts = (ray.spineIds || []).map((id) => eff(id)).filter(Boolean)
+                  // Rings close the loop (full circle); radial lines start at HQ.
                   const base = (ray.spineIds && ray.spineIds.length)
-                    ? [{ x: CX, y: CY }, ...ray.spineIds.map((id) => eff(id)).filter(Boolean)]
+                    ? (ray.ring
+                        ? (stationPts.length > 2 ? [...stationPts, stationPts[0]] : stationPts)
+                        : [{ x: CX, y: CY }, ...stationPts])
                     : ray.points
                   const dispPts = withWaypoints(base, (waypoints[ray.id] || []).map((w, i) => wpEff(ray.id, i, w)))
                   if (dispPts.length < 2) return null
@@ -630,14 +690,26 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
                     </>
                   )
                 })()}
-                {/* line name (click to delete the whole line in erase mode) */}
-                {ray.nameAt && (
-                  <text x={ray.nameAt.x} y={ray.nameAt.y} textAnchor="middle" fill={ray.color} fontSize={15} fontWeight={800} fontFamily="Inter, sans-serif"
-                    onClick={(e) => { if (constructorMode && constructorTool === 'erase') { e.stopPropagation(); eraseLine(ray.id) } }}
-                    style={{ textTransform: 'uppercase', letterSpacing: '0.04em', paintOrder: 'stroke', stroke: BG, strokeWidth: 3.5, cursor: (constructorMode && constructorTool === 'erase') ? 'pointer' : 'default' }}>
-                    {ray.name}
-                  </text>
-                )}
+                {/* line name — anchored to the last station's edge, follows it when moved */}
+                {(() => {
+                  let nx, ny, ndx = 0, ndy = 0
+                  if (ray.nameAnchor) {
+                    const ap = eff(ray.nameAnchor.id)
+                    if (ap) { nx = ap.x; ny = ap.y; ndx = ray.nameAnchor.dx; ndy = ray.nameAnchor.dy }
+                  }
+                  if (nx == null && ray.nameAt) { nx = ray.nameAt.x; ny = ray.nameAt.y }
+                  if (nx == null) return null
+                  const off = 30
+                  const lx = nx + ndx * off
+                  const ly = ny + ndy * off + (Math.abs(ndy) < 0.3 ? -14 : (ndy < 0 ? -6 : 14))
+                  return (
+                    <text x={lx} y={ly} textAnchor="middle" fill={ray.color} fontSize={15} fontWeight={800} fontFamily="Inter, sans-serif"
+                      onClick={(e) => { if (constructorMode && constructorTool === 'erase') { e.stopPropagation(); eraseLine(ray.id) } }}
+                      style={{ textTransform: 'uppercase', letterSpacing: '0.04em', paintOrder: 'stroke', stroke: BG, strokeWidth: 3.5, cursor: (constructorMode && constructorTool === 'erase') ? 'pointer' : 'default' }}>
+                      {ray.name}
+                    </text>
+                  )
+                })()}
               </g>
             ))}
 
@@ -752,7 +824,9 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
               const isHov = hoveredId === id
               const isAct = isSel || isHov
               const isDim = Boolean(activeId) && !isAct && !connectedIds.has(id)
-              const r = isAct ? 13 : (isRoot ? 11 : 7)
+              const expandable = Boolean(posItem.expandable && posItem.childCount > 0)
+              const isExpanded = expandable && String(expandedId) === id
+              const r = isAct ? 13 : (expandable ? 12 : (isRoot ? 11 : 7))
               const lx = x + (dx || 0) * 17
               const ly = y + (dy || 0) * 17 - (Math.abs(dy || 0) < 0.3 ? 15 : 0)
               const anchor = (dx || 0) > 0.3 ? 'start' : (dx || 0) < -0.3 ? 'end' : 'middle'
@@ -763,7 +837,10 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
                   onPointerDown={(e) => onStationPointerDown(e, id)}
                   onClick={(e) => {
                     if (constructorMode && constructorTool === 'erase') { e.stopPropagation(); return } // stations are not deletable
-                    if (!constructorMode) setSelectedDepartmentId(id)
+                    if (constructorMode) return
+                    // Expandable ring station: toggle its sub-departments; otherwise collapse any open one.
+                    setExpandedId((cur) => (expandable ? (String(cur) === id ? null : id) : null))
+                    setSelectedDepartmentId(id)
                   }}
                   onDoubleClick={(e) => {
                     if (!(constructorMode && constructorTool === 'move')) return
@@ -778,7 +855,15 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
                   {isAct && <circle cx={x} cy={y} r={r + 7} fill={nodeColor} opacity={0.3} filter="url(#mr-glow)" />}
                   {refStyle ? (
                     <>
+                      {/* expandable (has sub-departments): brighter outer ring as an affordance */}
+                      {expandable && <circle cx={x} cy={y} r={r + 4} fill="none" stroke={nodeColor} strokeWidth={2} opacity={isExpanded ? 0.95 : 0.5} />}
                       <circle cx={x} cy={y} r={r} fill="#FFFFFF" stroke={nodeColor} strokeWidth={isAct ? 5 : 4} />
+                      {/* sub-department count inside the station */}
+                      {expandable && (
+                        <text x={x} y={y + 0.5} textAnchor="middle" dominantBaseline="middle" fill={nodeColor} fontSize={11} fontWeight={900} fontFamily="Inter, sans-serif" style={{ pointerEvents: 'none' }}>
+                          {posItem.childCount}
+                        </text>
+                      )}
                     </>
                   ) : (
                     <>

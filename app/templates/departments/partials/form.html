@@ -6,7 +6,7 @@
 
   <div class="field">
     <label>Тип відділу</label>
-    <select name="department_type_id">
+    <select name="department_type_id" id="department_type_id">
       <option value="">-- Обрати --</option>
       {% for item in department_types %}
         <option value="{{ item.id }}"
@@ -32,17 +32,18 @@
 
   <div class="field">
     <label>Головний відділ</label>
-    <select name="parent_department_id">
+    <select name="parent_department_id" id="parent_department_id">
       <option value="">-- Немає --</option>
       {% for item in departments %}
         {% if not department or item.id != department.id %}
-          <option value="{{ item.id }}"
+          <option value="{{ item.id }}" data-type-id="{{ item.department_type_id or '' }}"
             {% if department and department.parent_department_id == item.id %}selected{% endif %}>
             {{ item.name }}
           </option>
         {% endif %}
       {% endfor %}
     </select>
+    <small class="muted">Показано відділи обраного типу та без типу.</small>
   </div>
 
   <div class="field full">
@@ -130,3 +131,25 @@
   </div>
 
 </div>
+
+<script>
+  (function () {
+    var typeSel = document.getElementById('department_type_id');
+    var parentSel = document.getElementById('parent_department_id');
+    if (!typeSel || !parentSel) return;
+    function apply() {
+      var t = typeSel.value; // selected type id or ''
+      Array.prototype.forEach.call(parentSel.options, function (opt) {
+        if (opt.value === '') { opt.hidden = false; opt.disabled = false; return; } // keep "Немає"
+        var ot = opt.getAttribute('data-type-id') || '';
+        var show = !t ? true : (ot === t || ot === ''); // same type OR no type
+        opt.hidden = !show;
+        opt.disabled = !show;
+      });
+      var cur = parentSel.selectedOptions[0];
+      if (cur && cur.hidden) parentSel.value = '';
+    }
+    typeSel.addEventListener('change', apply);
+    apply();
+  })();
+</script>
