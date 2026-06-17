@@ -503,9 +503,10 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       const spineIds = roots.map((s) => String(s.id))
 
       if (g.isService) {
-        // Smooth arc: constant curvature so the line sweeps like a curve
+        // Smooth arc: spread stations to close into a near-full ring (~330°) when there
+        // are enough of them, instead of leaving a big empty sector ("half circle missing").
         let heading = Math.atan2(DIRS8[baseDir][1], DIRS8[baseDir][0])
-        const curvature = 0.26 // radians turned per step
+        const curvature = Math.min(0.36, (2 * Math.PI * 0.92) / Math.max(1, count))
         let x = CX + Math.cos(heading) * START
         let y = CY + Math.sin(heading) * START
         roots.forEach((s) => {
