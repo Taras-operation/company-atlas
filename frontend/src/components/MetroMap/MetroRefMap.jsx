@@ -104,6 +104,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
   const [hoveredId, setHoveredId] = useState(null)
   const [overrides, setOverrides] = useState({}) // live drag positions {id:{x,y}}
   const [expandedId, setExpandedId] = useState(null) // ring station whose sub-departments are popped out
+  const [hoveredRelId, setHoveredRelId] = useState(null) // relation hovered directly
   const svgRef = useRef(null)
   const dragRef = useRef(null) // {id}
   const activeId = hoveredId || selectedDepartmentId
@@ -560,19 +561,37 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       const spineIds = roots.map((s) => String(s.id))
 
       if (g.isService) {
-        // A full circle centred on HQ; stations evenly spaced, sub-departments branch outward.
+        // Big ring => "stadium" (racetrack): straight top & bottom, rounded ends with 3
+        // stations each. Small ring => oval. Both centred on HQ; sub-depts branch outward.
         const info = ringInfoById[g.id] || { R: 200, startA: -Math.PI / 2 }
-        const R = info.R
-        const angleStep = (2 * Math.PI) / count
-        const startA = info.startA // phased so stations avoid spokes / other rings
+        const ASPECT = 0.42 // vertical extent relative to horizontal (flatter than circle)
+        const slots = []
+        if (count >= 8) {
+          const H = info.R * ASPECT       // turn radius / vertical half-height
+          const W = info.R * 0.92         // straight half-length
+          const perTurn = 3
+          const straight = Math.max(0, count - 2 * perTurn)
+          const topN = Math.ceil(straight / 2)
+          const botN = straight - topN
+          for (let i = 0; i < topN; i += 1) { const x = CX - W + 2 * W * ((i + 0.5) / topN); slots.push({ x, y: CY - H, dx: 0, dy: -1 }) }
+          for (let j = 0; j < perTurn; j += 1) { const a = -Math.PI / 2 + Math.PI * ((j + 0.5) / perTurn); slots.push({ x: CX + W + H * Math.cos(a), y: CY + H * Math.sin(a), dx: Math.cos(a), dy: Math.sin(a) }) }
+          for (let i = 0; i < botN; i += 1) { const x = CX + W - 2 * W * ((i + 0.5) / botN); slots.push({ x, y: CY + H, dx: 0, dy: 1 }) }
+          for (let j = 0; j < perTurn; j += 1) { const a = Math.PI / 2 + Math.PI * ((j + 0.5) / perTurn); slots.push({ x: CX - W + H * Math.cos(a), y: CY + H * Math.sin(a), dx: Math.cos(a), dy: Math.sin(a) }) }
+        } else {
+          const rx = info.R, ry = info.R * ASPECT
+          const step = (2 * Math.PI) / count
+          for (let i = 0; i < count; i += 1) {
+            const a = info.startA + i * step
+            const nx = Math.cos(a) / rx, ny = Math.sin(a) / ry, nl = Math.hypot(nx, ny) || 1
+            slots.push({ x: CX + Math.cos(a) * rx, y: CY + Math.sin(a) * ry, dx: nx / nl, dy: ny / nl })
+          }
+        }
         roots.forEach((s, i) => {
-          const a = startA + i * angleStep
-          const ux = Math.cos(a), uy = Math.sin(a)
-          const x = CX + ux * R, y = CY + uy * R
+          const sl = slots[i] || slots[slots.length - 1] || { x: CX, y: CY, dx: 0, dy: -1 }
           const childCount = childrenOf(s.id).filter((k) => !hidden.has(String(k.id))).length
-          pos.set(String(s.id), { x, y, color: g.color, station: s, dx: ux, dy: uy, isRoot: true, lineId: g.id, expandable: true, childCount })
-          pts.push({ x, y })
-          placeRingChildren(s, x, y, g.color) // children only when this station is expanded
+          pos.set(String(s.id), { x: sl.x, y: sl.y, color: g.color, station: s, dx: sl.dx, dy: sl.dy, isRoot: true, lineId: g.id, expandable: true, childCount })
+          pts.push({ x: sl.x, y: sl.y })
+          placeRingChildren(s, sl.x, sl.y, g.color) // children only when this station is expanded
         })
       } else {
         const BEND_EVERY = 3
@@ -620,9 +639,10 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
 
   const visibleRelations = useMemo(() => {
     if (!payload) return []
-    // When a department is active, show only its relations; otherwise show all.
-    if (!activeId) return payload.relations
-    return payload.relations.filter((r) => String(r.source) === String(activeId) || String(r.target) === String(activeId))
+    // A department in focus: show all its relations. Otherwise: show only STRONG relations
+    // (faintly) — the rest stay hidden until a department is selected.
+    if (activeId) return payload.relations.filter((r) => String(r.source) === String(activeId) || String(r.target) === String(activeId))
+    return payload.relations.filter((r) => r.strength === 'high')
   }, [payload, activeId])
 
   const onHover = (id) => { setHoveredId(id); setHoveredDepartmentId?.(id) }
@@ -745,27 +765,32 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
                 const ay = 2 * (1 - t) * (qy - sp.y) + 2 * t * (tp.y - qy)
                 return Math.atan2(ay, ax) * 180 / Math.PI
               }
-              const nArrows = Math.max(2, Math.min(12, Math.round(dist / 75)))
+              // Highlighted when a department is focused, or the relation itself is hovered.
+              const hot = Boolean(activeId) || String(hoveredRelId) === String(rel.id)
               const arrows = []
-              for (let k = 0; k < nArrows; k += 1) {
-                const t = (k + 0.5) / nArrows
-                const p = quad(t)
-                let ang = tangent(t)
-                let col = srcColor
-                if (isBi) {
-                  if (t < 0.5) { col = srcColor /* first half points toward target (forward) */ }
-                  else { ang += 180; col = tgtColor /* second half points back toward source */ }
+              if (hot) {
+                const nArrows = Math.max(2, Math.min(12, Math.round(dist / 75)))
+                for (let k = 0; k < nArrows; k += 1) {
+                  const t = (k + 0.5) / nArrows
+                  const p = quad(t)
+                  let ang = tangent(t)
+                  let col = srcColor
+                  if (isBi && t >= 0.5) { ang += 180; col = tgtColor } // second half points back
+                  arrows.push(
+                    <path key={`ar-${rel.id}-${k}`} d="M -5 -4 L 4 0 L -5 4 Z" fill={col}
+                      transform={`translate(${p.x} ${p.y}) rotate(${ang})`} opacity={0.95} />,
+                  )
                 }
-                arrows.push(
-                  <path key={`ar-${rel.id}-${k}`} d="M -5 -4 L 4 0 L -5 4 Z" fill={col}
-                    transform={`translate(${p.x} ${p.y}) rotate(${ang})`} opacity={0.9} />,
-                )
               }
+              const d = `M ${sp.x} ${sp.y} Q ${qx} ${qy} ${tp.x} ${tp.y}`
               return (
-                <g key={`r-${rel.id}`}>
-                  <path d={`M ${sp.x} ${sp.y} Q ${qx} ${qy} ${tp.x} ${tp.y}`} fill="none"
-                    stroke={isCrit ? '#F97316' : srcColor} strokeWidth={isCrit ? 2.4 : 1.8}
-                    strokeLinecap="round" opacity={isCrit ? 0.55 : 0.4} />
+                <g key={`r-${rel.id}`} style={{ cursor: 'pointer' }}
+                  onMouseEnter={() => setHoveredRelId(rel.id)} onMouseLeave={() => setHoveredRelId((v) => (v === rel.id ? null : v))}>
+                  {/* wide invisible hit area so a faint line is easy to hover */}
+                  <path d={d} fill="none" stroke="transparent" strokeWidth={16} />
+                  <path d={d} fill="none"
+                    stroke={isCrit ? '#F97316' : srcColor} strokeWidth={hot ? (isCrit ? 2.6 : 2.2) : 1.4}
+                    strokeLinecap="round" opacity={hot ? (isCrit ? 0.7 : 0.6) : 0.14} />
                   {arrows}
                 </g>
               )
@@ -832,7 +857,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
               const anchor = (dx || 0) > 0.3 ? 'start' : (dx || 0) < -0.3 ? 'end' : 'middle'
               return (
                 <g key={id}
-                  style={{ cursor: constructorMode ? 'grab' : 'pointer', opacity: isDim ? 0.25 : 1, transition: 'opacity 150ms' }}
+                  style={{ cursor: constructorMode ? 'grab' : 'pointer', opacity: isDim ? 0.16 : 1, transition: 'opacity 150ms' }}
                   onMouseEnter={() => onHover(id)} onMouseLeave={onLeave}
                   onPointerDown={(e) => onStationPointerDown(e, id)}
                   onClick={(e) => {
@@ -903,6 +928,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
         </TransformComponent>
 
         <ZoomControls />
+
         <div style={{ position: 'absolute', right: 16, bottom: 16, zIndex: 30, border: '1px solid rgba(148,163,184,0.22)', borderRadius: 10, overflow: 'hidden', background: 'rgba(13,27,42,0.9)', backdropFilter: 'blur(8px)' }}>
           <MiniMap width={180} height={130} borderColor="rgba(96,165,250,0.8)">
             <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" style={{ display: 'block', background: BG }}>
