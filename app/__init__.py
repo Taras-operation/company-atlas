@@ -54,6 +54,23 @@ def create_app() -> Flask:
     app.register_blueprint(audit_bp)
     app.register_blueprint(visualization_bp)
 
+    # Cache-busting asset URLs: the built bundle has a fixed name (index.js), so append a
+    # ?v=<mtime> version. It changes only when the file changes (each deploy), forcing
+    # browsers to fetch the fresh bundle instead of serving a stale cached one.
+    import os
+    from flask import url_for as _url_for
+
+    @app.context_processor
+    def _inject_asset_helpers():
+        def asset_url(filename):
+            url = _url_for("static", filename=filename)
+            try:
+                version = int(os.path.getmtime(os.path.join(app.static_folder, filename)))
+            except OSError:
+                version = 0
+            return f"{url}?v={version}"
+        return {"asset_url": asset_url}
+
     @app.cli.command("init-db")
     def init_db() -> None:
         """Create any missing tables (idempotent, matches models exactly)."""
