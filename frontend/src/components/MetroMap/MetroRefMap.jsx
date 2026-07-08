@@ -567,12 +567,13 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
         const ASPECT = 0.42 // vertical extent relative to horizontal (flatter than circle)
         const slots = []
         if (count >= 8) {
-          const H = info.R * ASPECT       // turn radius / vertical half-height
-          const W = info.R * 0.92         // straight half-length
           const perTurn = 3
           const straight = Math.max(0, count - 2 * perTurn)
           const topN = Math.ceil(straight / 2)
           const botN = straight - topN
+          const H = info.R * ASPECT       // turn radius / vertical half-height
+          // widen the straights so labels along the top/bottom don't collide
+          const W = Math.max(info.R * 0.92, 90 * Math.max(topN, botN, 1))
           for (let i = 0; i < topN; i += 1) { const x = CX - W + 2 * W * ((i + 0.5) / topN); slots.push({ x, y: CY - H, dx: 0, dy: -1 }) }
           for (let j = 0; j < perTurn; j += 1) { const a = -Math.PI / 2 + Math.PI * ((j + 0.5) / perTurn); slots.push({ x: CX + W + H * Math.cos(a), y: CY + H * Math.sin(a), dx: Math.cos(a), dy: Math.sin(a) }) }
           for (let i = 0; i < botN; i += 1) { const x = CX + W - 2 * W * ((i + 0.5) / botN); slots.push({ x, y: CY + H, dx: 0, dy: 1 }) }
