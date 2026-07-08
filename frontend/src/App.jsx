@@ -2202,6 +2202,15 @@ function App() {
                         ↶ Назад {geometryHistoryLen > 0 && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#64748B' }}>{geometryHistoryLen}</span>}
                       </button>
                     )}
+                    {constructorMode && (
+                      <button
+                        onClick={() => { if (window.confirm('Скинути ВСІ ручні зміни розташування для цього режиму та повернути авто-вигляд?')) { saveLineGeometry({}); setShowConstructorMenu(false) } }}
+                        title="Прибрати всі ручні позиції, повороти, гілки та приховування — повернути авто-розкладку"
+                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: '#FCA5A5', display: 'flex', alignItems: 'center', gap: 8 }}
+                      >
+                        ♻ Скинути все розташування
+                      </button>
+                    )}
                     {constructorMode && selectedConstructorElement && (
                       <button
                         onClick={() => { deleteSelectedConstructorElement(); setShowConstructorMenu(false) }}
