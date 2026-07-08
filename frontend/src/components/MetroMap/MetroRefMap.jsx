@@ -533,7 +533,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       const slotR = (k) => START + STEP * (k + 0.5) // between the regional station rings
       const ringOrder = (name) => {
         const t = (name || '').toLowerCase()
-        if (t.includes('баинг') || t.includes('баінг') || t.includes('baing') || t.includes('buying')) return 0
+        if (/ба[иіїы]нг/.test(t) || t.includes('baing') || t.includes('buying')) return 0
         if (t.includes('сервіс') || t.includes('сервис') || t.includes('service')) return 1
         return 2
       }
@@ -556,7 +556,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       const roots = g.roots.filter((s) => !hidden.has(String(s.id)))
       const count = roots.length
       if (!count) return // whole line deleted
-      const isBaing = /баинг|баінг|baing|buying/.test((g.name || '').toLowerCase())
+      const isBaing = /ба[иіїы]нг|baing|buying/.test((g.name || '').toLowerCase())
       const isRing = Boolean(g.isService) && !isBaing
       let pts = isRing ? [] : [{ x: CX, y: CY }]
       const spineIds = roots.map((s) => String(s.id))
