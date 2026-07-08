@@ -1153,8 +1153,13 @@ function App() {
   }
 
   useEffect(() => {
-    const handleResize = () => setIsCompactView(window.innerWidth < 1180)
-
+    const handleResize = () => {
+      const w = window.innerWidth
+      setIsCompactView(w < 1180)
+      // Auto-collapse the sidebar on narrow windows so the header/shell never overflow.
+      if (w < 1080) setIsSidebarCollapsed(true)
+    }
+    handleResize()
     window.addEventListener('resize', handleResize)
 
     return () => window.removeEventListener('resize', handleResize)
@@ -1910,7 +1915,7 @@ function App() {
         </div>
       </aside>
 
-      <section style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', background: '#020817' }}>
+      <section style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', background: '#020817', overflowX: 'hidden' }}>
         <header
           style={{
             minHeight: 62,
@@ -2353,15 +2358,17 @@ function App() {
                   {(currentVisualizationUser?.display_name || currentVisualizationUser?.username || (payload?.is_admin ? 'AD' : 'U'))
                     .slice(0, 2).toUpperCase()}
                 </div>
-                {/* Name + role */}
-                <div style={{ lineHeight: 1.3 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#86EFAC', whiteSpace: 'nowrap' }}>
-                    {currentVisualizationUser?.display_name || currentVisualizationUser?.username || (payload?.is_admin ? 'Адміністратор' : 'Гість')}
+                {/* Name + role — hidden on narrow windows to keep the header from overflowing */}
+                {!isCompactView && (
+                  <div style={{ lineHeight: 1.3 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#86EFAC', whiteSpace: 'nowrap' }}>
+                      {currentVisualizationUser?.display_name || currentVisualizationUser?.username || (payload?.is_admin ? 'Адміністратор' : 'Гість')}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#64748B', whiteSpace: 'nowrap' }}>
+                      {payload?.is_admin ? (payload.admin_role || 'admin') : (currentVisualizationUser?.role || 'viewer')}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 10, color: '#64748B', whiteSpace: 'nowrap' }}>
-                    {payload?.is_admin ? (payload.admin_role || 'admin') : (currentVisualizationUser?.role || 'viewer')}
-                  </div>
-                </div>
+                )}
                 {/* Logout */}
                 <button
                   onClick={handleVisualizationLogout}
