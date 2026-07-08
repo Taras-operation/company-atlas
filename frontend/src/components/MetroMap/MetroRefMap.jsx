@@ -556,11 +556,25 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       const roots = g.roots.filter((s) => !hidden.has(String(s.id)))
       const count = roots.length
       if (!count) return // whole line deleted
-      const isRing = Boolean(g.isService)
+      const isBaing = /баинг|баінг|baing|buying/.test((g.name || '').toLowerCase())
+      const isRing = Boolean(g.isService) && !isBaing
       let pts = isRing ? [] : [{ x: CX, y: CY }]
       const spineIds = roots.map((s) => String(s.id))
 
-      if (g.isService) {
+      if (isBaing) {
+        // Баинг: L-shaped line — up to 3 stations LEFT from HQ, then 90° UP for the rest.
+        const LEFT_N = Math.min(3, count)
+        const cornerX = CX - (START + (LEFT_N - 1) * STEP)
+        roots.forEach((s, i) => {
+          let x, y, dx, dy
+          if (i < LEFT_N) { x = CX - (START + i * STEP); y = CY; dx = 0; dy = -1 } // left arm
+          else { x = cornerX; y = CY - STEP * (i - LEFT_N + 1); dx = -1; dy = 0 }  // up arm
+          const childCount = childrenOf(s.id).filter((k) => !hidden.has(String(k.id))).length
+          pos.set(String(s.id), { x, y, color: g.color, station: s, dx, dy, isRoot: true, lineId: g.id, expandable: true, childCount })
+          pts.push({ x, y })
+          placeRingChildren(s, x, y, g.color)
+        })
+      } else if (g.isService) {
         // Big ring => "stadium" (racetrack): straight top & bottom, rounded ends with 3
         // stations each. Small ring => oval. Both centred on HQ; sub-depts branch outward.
         const info = ringInfoById[g.id] || { R: 200, startA: -Math.PI / 2 }
@@ -573,7 +587,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
           const botN = straight - topN
           const H = info.R * ASPECT       // turn radius / vertical half-height
           // widen the straights so labels along the top/bottom don't collide
-          const W = Math.max(info.R * 0.92, 90 * Math.max(topN, botN, 1))
+          const W = Math.max(info.R * 0.92, 80 * Math.max(topN, botN, 1))
           for (let i = 0; i < topN; i += 1) { const x = CX - W + 2 * W * ((i + 0.5) / topN); slots.push({ x, y: CY - H, dx: 0, dy: -1 }) }
           for (let j = 0; j < perTurn; j += 1) { const a = -Math.PI / 2 + Math.PI * ((j + 0.5) / perTurn); slots.push({ x: CX + W + H * Math.cos(a), y: CY + H * Math.sin(a), dx: Math.cos(a), dy: Math.sin(a) }) }
           for (let i = 0; i < botN; i += 1) { const x = CX + W - 2 * W * ((i + 0.5) / botN); slots.push({ x, y: CY + H, dx: 0, dy: 1 }) }
