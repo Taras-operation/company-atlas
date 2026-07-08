@@ -636,7 +636,9 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       }
 
       const lastP = pts[pts.length - 1]
-      rayPaths.push({ id: g.id, name: g.name, color: g.color, points: pts, trunk: [], feeders: [], spineIds, ring: isRing, nameAt: lastP ? { x: lastP.x, y: lastP.y - 22 } : null, nameAnchor: makeNameAnchor(spineIds, null) })
+      // Regional GEO spokes get an angled label near HQ (which line goes where); rings/Baing keep the end-anchored label.
+      const nameAngled = !g.isService && !isBaing
+      rayPaths.push({ id: g.id, name: g.name, color: g.color, points: pts, trunk: [], feeders: [], spineIds, ring: isRing, nameAngled, nameAt: lastP ? { x: lastP.x, y: lastP.y - 22 } : null, nameAnchor: makeNameAnchor(spineIds, null) })
     })
 
     return { positions: pos, rays: rayPaths }
@@ -725,8 +727,29 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
                     </>
                   )
                 })()}
-                {/* line name — anchored to the last station's edge, follows it when moved */}
+                {/* line name */}
                 {(() => {
+                  // Regional GEO line: label near HQ, above the line, rotated to the line's angle.
+                  if (ray.nameAngled && ray.spineIds && ray.spineIds.length) {
+                    const p1 = eff(ray.spineIds[0])
+                    if (p1) {
+                      const dxv = p1.x - CX, dyv = p1.y - CY, len = Math.hypot(dxv, dyv) || 1
+                      const ux = dxv / len, uy = dyv / len
+                      const bx0 = CX + ux * len * 0.55, by0 = CY + uy * len * 0.55
+                      let px = -uy, py = ux
+                      if (py > 0) { px = -px; py = -py } // perpendicular pointing "up"
+                      const bx = bx0 + px * 20, by = by0 + py * 20
+                      let ang = Math.atan2(uy, ux) * 180 / Math.PI
+                      if (ang > 90 || ang < -90) ang += 180 // keep text upright
+                      return (
+                        <text x={bx} y={by} transform={`rotate(${ang} ${bx} ${by})`} textAnchor="middle" fill={ray.color} fontSize={14} fontWeight={800} fontFamily="Inter, sans-serif"
+                          onClick={(e) => { if (constructorMode && constructorTool === 'erase') { e.stopPropagation(); eraseLine(ray.id) } }}
+                          style={{ textTransform: 'uppercase', letterSpacing: '0.04em', paintOrder: 'stroke', stroke: BG, strokeWidth: 3.5, cursor: (constructorMode && constructorTool === 'erase') ? 'pointer' : 'default' }}>
+                          {ray.name}
+                        </text>
+                      )
+                    }
+                  }
                   let nx, ny, ndx = 0, ndy = 0
                   if (ray.nameAnchor) {
                     const ap = eff(ray.nameAnchor.id)
