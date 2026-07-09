@@ -1830,17 +1830,8 @@ function App() {
                 <div style={{ height: 1, background: 'rgba(148,163,184,0.12)', margin: '2px 0' }} />
                 {/* Relations */}
                 <div style={{ color: '#64748B', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
-                  Зв'язки
+                  Зв'язки — сила
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <span style={{ width: 28, height: 3, background: '#F97316', borderRadius: 2, flexShrink: 0 }} />
-                  <span style={{ color: '#F97316' }}>Критичних: {criticalRelations}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <span style={{ width: 28, height: 0, borderTop: '2px dashed #94A3B8', flexShrink: 0, opacity: 0.5 }} />
-                  <span>Звичайний зв'язок</span>
-                </div>
-                <div style={{ height: 1, background: 'rgba(148,163,184,0.12)', margin: '2px 0' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                   <span style={{ width: 28, height: 4, background: '#94A3B8', borderRadius: 2, flexShrink: 0 }} />
                   <span>Сильний</span>
