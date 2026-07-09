@@ -780,9 +780,12 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
       )}
 
       {/* Table — no overflow here, or it would become the sticky scroll container and
-          break the sticky row/column headers (the real scroller is the parent div). */}
+          break the sticky row/column headers (the real scroller is the parent div).
+          width:max-content makes the wrapper report the full table width so the parent
+          can scroll all the way to the last column. */}
       <div style={{
-        display: 'inline-block',
+        display: 'block',
+        width: 'max-content',
         minWidth: '100%',
         borderRadius: 18,
         border: '1px solid rgba(148,163,184,0.12)',
