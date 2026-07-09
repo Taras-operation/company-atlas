@@ -1786,6 +1786,7 @@ function App() {
             })}
           </section>
 
+          {!isSidebarCollapsed && (
           <section style={{ border: '1px solid rgba(30, 41, 59, 0.95)', background: 'rgba(15, 23, 42, 0.62)', borderRadius: 18, padding: 16 }}>
             <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', marginBottom: 14, fontWeight: 700 }}>
               Легенда
@@ -1918,6 +1919,7 @@ function App() {
               </div>
             )}
           </section>
+          )}
         </div>
       </aside>
 
