@@ -192,8 +192,9 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
   }
   const onSvgPointerMove = (e) => {
     if (!dragRef.current) return
+    const key = dragRef.current.key // capture now — dragRef.current may be null by the time the updater runs
     const p = clientToSvg(e.clientX, e.clientY)
-    if (p) setOverrides((o) => ({ ...o, [dragRef.current.key]: p }))
+    if (p && key) setOverrides((o) => ({ ...o, [key]: p }))
   }
   const onSvgPointerUp = () => {
     const d = dragRef.current
