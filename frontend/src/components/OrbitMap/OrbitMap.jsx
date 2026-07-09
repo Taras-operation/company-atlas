@@ -53,6 +53,7 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
   const [hoveredId, setHoveredId] = useState(null)
   const [hoveredChildId, setHoveredChildId] = useState(null)
   const [showSub, setShowSub] = useState(true)
+  const [hiddenKinds, setHiddenKinds] = useState({}) // { service|baing|regional: true } => hidden
   const [showRel, setShowRel] = useState(true)
   const activeId = hoveredId || selectedDepartmentId
 
@@ -86,11 +87,11 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
         })
       })
     }
-    place(service, RS, C_SERVICE, 'service')
-    place(baing, RB, C_BAING, 'baing')
-    place(regional, RR, C_REGIONAL, 'regional')
+    if (!hiddenKinds.service) place(service, RS, C_SERVICE, 'service')
+    if (!hiddenKinds.baing) place(baing, RB, C_BAING, 'baing')
+    if (!hiddenKinds.regional) place(regional, RR, C_REGIONAL, 'regional')
     return { nodes: out, posMap: new Map(out.map((nd) => [nd.id, nd])) }
-  }, [payload])
+  }, [payload, hiddenKinds])
 
   const connectedIds = useMemo(() => {
     const set = new Set()
@@ -213,13 +214,18 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
 
         <ZoomControls />
 
-        {/* legend */}
-        <div style={{ position: 'absolute', left: 16, top: 16, zIndex: 30, display: 'flex', gap: 14, alignItems: 'center', background: 'rgba(15,23,42,0.82)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '8px 14px', backdropFilter: 'blur(8px)', fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 700 }}>
-          {[['Сервісні', C_SERVICE], ['Баинг', C_BAING], ['Регіональні', C_REGIONAL]].map(([t, c]) => (
-            <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#CBD5E1' }}>
-              <span style={{ width: 11, height: 11, borderRadius: '50%', background: c, boxShadow: `0 0 8px ${c}` }} />{t}
-            </span>
-          ))}
+        {/* legend / clickable type filter */}
+        <div style={{ position: 'absolute', left: 16, top: 16, zIndex: 30, display: 'flex', gap: 4, alignItems: 'center', background: 'rgba(15,23,42,0.82)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '5px 6px', backdropFilter: 'blur(8px)', fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 700 }}>
+          {[['Сервісні', C_SERVICE, 'service'], ['Баинг', C_BAING, 'baing'], ['Регіональні', C_REGIONAL, 'regional']].map(([t, c, kind]) => {
+            const on = !hiddenKinds[kind]
+            return (
+              <button key={t} onClick={() => setHiddenKinds((h) => ({ ...h, [kind]: !h[kind] }))} title={on ? 'Приховати тип' : 'Показати тип'}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '5px 9px', borderRadius: 7, opacity: on ? 1 : 0.45, transition: 'opacity 120ms' }}>
+                <span style={{ width: 11, height: 11, borderRadius: '50%', background: on ? c : '#475569', boxShadow: on ? `0 0 8px ${c}` : 'none', flexShrink: 0 }} />
+                <span style={{ color: on ? '#CBD5E1' : '#64748B' }}>{t}</span>
+              </button>
+            )
+          })}
         </div>
 
         {/* display toggles */}

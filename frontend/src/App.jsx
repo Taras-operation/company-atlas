@@ -1859,22 +1859,24 @@ function App() {
             {/* Orbit View legend */}
             {viewMode === 'orbit' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 11, fontSize: 12, color: '#CBD5E1' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 999, border: '2px solid #3B82F6', background: 'transparent', flexShrink: 0 }} />
-                  <span>Регіональний — зовнішнє кільце</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 999, border: '2px solid #22C55E', background: 'transparent', flexShrink: 0 }} />
-                  <span>Сервісний — внутрішня зона</span>
-                </div>
+                {[
+                  { label: 'Сервісні — внутрішня орбіта', color: '#F5B301' },
+                  { label: 'Баинг — середня орбіта', color: '#3B82F6' },
+                  { label: 'Регіональні — зовнішня орбіта', color: '#22C55E' },
+                ].map(({ label, color }) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 11, height: 11, borderRadius: '50%', background: color, boxShadow: `0 0 7px ${color}`, flexShrink: 0 }} />
+                    <span>{label}</span>
+                  </div>
+                ))}
                 <div style={{ height: 1, background: 'rgba(148,163,184,0.12)', margin: '2px 0' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 32, height: 2, background: '#F97316', borderRadius: 2, flexShrink: 0 }} />
-                  <span style={{ color: '#F97316' }}>Критичних: {criticalRelations}</span>
+                  <span style={{ width: 30, height: 2, background: '#8595AC', borderRadius: 2, flexShrink: 0 }} />
+                  <span>Сильний зв'язок</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 32, height: 0, borderTop: '2px dashed #94A3B8', flexShrink: 0, opacity: 0.5 }} />
-                  <span>Звичайний зв'язок</span>
+                  <span style={{ width: 30, height: 0, borderTop: '2px dashed #8595AC', flexShrink: 0, opacity: 0.6 }} />
+                  <span>Слабший — за вибором відділу</span>
                 </div>
                 <div style={{ height: 1, background: 'rgba(148,163,184,0.12)', margin: '2px 0' }} />
                 <div style={{ color: '#64748B', fontSize: 11, lineHeight: 1.5 }}>
@@ -1982,31 +1984,6 @@ function App() {
                 </svg>
                 <span>R</span>
               </button>
-            )}
-
-            {/* Type filter for Metro — compact dot toggles, one per type (label in tooltip) */}
-            {viewMode === 'metro' && (
-              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                {metroTypes.map(({ name, color }) => {
-                  const on = !hiddenTypes[name]
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => setHiddenTypes((h) => ({ ...h, [name]: !h[name] }))}
-                      title={name}
-                      style={{
-                        width: 30, height: 30, borderRadius: 8, cursor: 'pointer',
-                        border: `1px solid ${on ? color + '55' : 'rgba(148,163,184,0.14)'}`,
-                        background: on ? color + '18' : 'transparent',
-                        transition: 'all 120ms',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      <span style={{ width: 9, height: 9, borderRadius: '50%', background: on ? color : '#334155' }} />
-                    </button>
-                  )
-                })}
-              </div>
             )}
 
             {/* Metro layout switcher (compact dropdown to save header space) */}
@@ -2407,6 +2384,7 @@ function App() {
         <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
           <main style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', background: '#020817' }}>
             {viewMode === 'metro' && (
+              <>
               <MapErrorBoundary resetKey={`${mapResetKey}-${metroLayout}`} onReset={() => { saveLineGeometry({ ...lineGeometry, lineEnds: undefined }); setMapResetKey((k) => k + 1) }}>
               <MetroRefMap
                 key={`metro2-${mapResetKey}-${metroLayout}-${Object.keys(hiddenTypes).filter((k) => hiddenTypes[k]).sort().join(',')}`}
@@ -2432,6 +2410,37 @@ function App() {
                 onSelectConstructorElement={setSelectedConstructorElement}
               />
               </MapErrorBoundary>
+
+              {/* On-map type legend / filter (moved from the header) */}
+              {metroTypes.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: 14, left: 14, zIndex: 20,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  background: 'rgba(9,18,33,0.82)', border: '1px solid rgba(148,163,184,0.18)',
+                  borderRadius: 11, padding: '5px 6px', backdropFilter: 'blur(10px)',
+                }}>
+                  {metroTypes.map(({ name, color }) => {
+                    const on = !hiddenTypes[name]
+                    return (
+                      <button
+                        key={name}
+                        onClick={() => setHiddenTypes((h) => ({ ...h, [name]: !h[name] }))}
+                        title={on ? 'Приховати тип' : 'Показати тип'}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 7,
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          padding: '5px 9px', borderRadius: 8, opacity: on ? 1 : 0.45,
+                          transition: 'opacity 120ms',
+                        }}
+                      >
+                        <span style={{ width: 11, height: 11, borderRadius: '50%', background: on ? color : '#475569', boxShadow: on ? `0 0 8px ${color}` : 'none', flexShrink: 0 }} />
+                        <span style={{ color: on ? '#CBD5E1' : '#64748B', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{name}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              </>
             )}
 
             {viewMode === 'orbit' && (
