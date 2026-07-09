@@ -779,21 +779,21 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
         </div>
       )}
 
-      {/* Table */}
+      {/* Table — no overflow here, or it would become the sticky scroll container and
+          break the sticky row/column headers (the real scroller is the parent div). */}
       <div style={{
         display: 'inline-block',
         minWidth: '100%',
         borderRadius: 18,
-        overflow: 'hidden',
         border: '1px solid rgba(148,163,184,0.12)',
         background: '#070E1C',
       }}>
-        <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
+        <table style={{ borderCollapse: 'separate', borderSpacing: 0, minWidth: '100%' }}>
           <thead>
             <tr>
               {/* Corner */}
               <th style={{
-                position: 'sticky', left: 0, zIndex: 4,
+                position: 'sticky', left: 0, top: 0, zIndex: 5,
                 width: 190, minWidth: 190,
                 background: '#070E1C',
                 borderBottom: '1px solid rgba(148,163,184,0.12)',
@@ -814,6 +814,7 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
                     key={dept.id}
                     onClick={() => onSelectDepartment?.(String(dept.id))}
                     style={{
+                      position: 'sticky', top: 0, zIndex: 3,
                       width: 48, minWidth: 48, maxWidth: 48,
                       background: isSel
                         ? `${dept.line?.color || '#3B82F6'}18`
