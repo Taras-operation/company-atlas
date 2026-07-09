@@ -499,11 +499,12 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
     const GEO_BRANCH = 54 // sub-department branch step (smaller than the main spine)
 
     // Regional lines: sub-departments as a small branch off the root (always visible).
-    const placeGeoChildren = (root, x, y, perp, color) => {
+    // faint=true renders the branch at 50% opacity until the parent/child is active.
+    const placeGeoChildren = (root, x, y, perp, color, faint = false) => {
       childrenOf(root.id).filter((k) => !hidden.has(String(k.id))).forEach((kid, ki) => {
         const bx = x + perp[0] * GEO_BRANCH * (ki + 1)
         const by = y + perp[1] * GEO_BRANCH * (ki + 1)
-        pos.set(String(kid.id), { x: bx, y: by, color, station: kid, dx: perp[0], dy: perp[1], isRoot: false, branchFrom: { x, y } })
+        pos.set(String(kid.id), { x: bx, y: by, color, station: kid, dx: perp[0], dy: perp[1], isRoot: false, branchFrom: { x, y }, faint })
       })
     }
 
@@ -569,10 +570,10 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
           let x, y, dx, dy
           if (i < LEFT_N) { x = CX - (START + i * STEP); y = CY; dx = 0; dy = -1 } // left arm
           else { x = cornerX; y = CY - STEP * (i - LEFT_N + 1); dx = -1; dy = 0 }  // up arm
-          const childCount = childrenOf(s.id).filter((k) => !hidden.has(String(k.id))).length
-          pos.set(String(s.id), { x, y, color: g.color, station: s, dx, dy, isRoot: true, lineId: g.id, expandable: true, childCount })
+          pos.set(String(s.id), { x, y, color: g.color, station: s, dx, dy, isRoot: true, lineId: g.id })
           pts.push({ x, y })
-          placeRingChildren(s, x, y, g.color)
+          // sub-departments as a faint branch (full opacity on hover/select), same as service
+          placeGeoChildren(s, x, y, [dx, dy], g.color, true)
         })
       } else if (g.isService) {
         // Big ring => "stadium" (racetrack): straight top & bottom, rounded ends with 3
@@ -603,10 +604,10 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
         }
         roots.forEach((s, i) => {
           const sl = slots[i] || slots[slots.length - 1] || { x: CX, y: CY, dx: 0, dy: -1 }
-          const childCount = childrenOf(s.id).filter((k) => !hidden.has(String(k.id))).length
-          pos.set(String(s.id), { x: sl.x, y: sl.y, color: g.color, station: s, dx: sl.dx, dy: sl.dy, isRoot: true, lineId: g.id, expandable: true, childCount })
+          pos.set(String(s.id), { x: sl.x, y: sl.y, color: g.color, station: s, dx: sl.dx, dy: sl.dy, isRoot: true, lineId: g.id })
           pts.push({ x: sl.x, y: sl.y })
-          placeRingChildren(s, sl.x, sl.y, g.color) // children only when this station is expanded
+          // sub-departments as a faint branch radiating outward (full opacity on hover/select)
+          placeGeoChildren(s, sl.x, sl.y, [sl.dx, sl.dy], g.color, true)
         })
       } else {
         const BEND_EVERY = 3
@@ -636,8 +637,8 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       }
 
       const lastP = pts[pts.length - 1]
-      // Regional GEO spokes get an angled label near HQ (which line goes where); rings/Baing keep the end-anchored label.
-      const nameAngled = !g.isService && !isBaing
+      // Regional GEO spokes AND Baing get an angled label near HQ (which line goes where); rings keep the end-anchored label.
+      const nameAngled = isBaing || !g.isService
       rayPaths.push({ id: g.id, name: g.name, color: g.color, points: pts, trunk: [], feeders: [], spineIds, ring: isRing, nameAngled, nameAt: lastP ? { x: lastP.x, y: lastP.y - 22 } : null, nameAnchor: makeNameAnchor(spineIds, null) })
     })
 
@@ -678,9 +679,9 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
               <filter id="mr-glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
             </defs>
 
-            <rect width={W} height={H} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null); setExpandedId(null) }} />
+            <rect width={W} height={H} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null); setExpandedId(null); setSelectedDepartmentId(null) }} />
             <pattern id="mr-dots" x="0" y="0" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill="rgba(148,163,184,0.06)" /></pattern>
-            <rect width={W} height={H} fill="url(#mr-dots)" />
+            <rect width={W} height={H} fill="url(#mr-dots)" style={{ pointerEvents: 'none' }} />
 
             {/* Ray tracks */}
             {rays.map((ray) => (
@@ -777,7 +778,10 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
               const ce = eff(cid) || { x: p.x, y: p.y }
               const pid = parentIdOf(p.station)
               const pe = (pid != null && eff(pid)) || p.branchFrom
-              return <line key={`b-${cid}`} x1={pe.x} y1={pe.y} x2={ce.x} y2={ce.y} stroke={p.color} strokeWidth={3} opacity={0.5} strokeLinecap="round" />
+              // faint branches (service sub-departments) dim to 50% until the parent or child is active
+              const kActive = String(activeId) === cid || (activeId != null && String(pid) === String(activeId))
+              const op = p.faint ? (kActive ? 0.9 : 0.5) : 0.5
+              return <line key={`b-${cid}`} x1={pe.x} y1={pe.y} x2={ce.x} y2={ce.y} stroke={p.color} strokeWidth={3} opacity={op} strokeLinecap="round" />
             })}
 
             {/* Relations — line + directional arrows along its length */}
@@ -889,13 +893,16 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
               const isDim = Boolean(activeId) && !isAct && !connectedIds.has(id)
               const expandable = Boolean(posItem.expandable && posItem.childCount > 0)
               const isExpanded = expandable && String(expandedId) === id
+              // faint sub-departments (service branches): 50% until this node or its parent is active
+              const parentActive = posItem.faint && activeId != null && String(parentIdOf(station)) === String(activeId)
+              const faintOp = posItem.faint && !isAct && !parentActive ? 0.5 : 1
               const r = isAct ? 13 : (expandable ? 12 : (isRoot ? 11 : 7))
               const lx = x + (dx || 0) * 17
               const ly = y + (dy || 0) * 17 - (Math.abs(dy || 0) < 0.3 ? 15 : 0)
               const anchor = (dx || 0) > 0.3 ? 'start' : (dx || 0) < -0.3 ? 'end' : 'middle'
               return (
                 <g key={id}
-                  style={{ cursor: constructorMode ? 'grab' : 'pointer', opacity: isDim ? 0.16 : 1, transition: 'opacity 150ms' }}
+                  style={{ cursor: constructorMode ? 'grab' : 'pointer', opacity: isDim ? 0.16 : faintOp, transition: 'opacity 150ms' }}
                   onMouseEnter={() => onHover(id)} onMouseLeave={onLeave}
                   onPointerDown={(e) => onStationPointerDown(e, id)}
                   onClick={(e) => {

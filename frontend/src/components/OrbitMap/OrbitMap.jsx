@@ -133,7 +133,7 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
 
             <rect width={W} height={H} fill={BG} onClick={() => setSelectedDepartmentId(null)} />
             <pattern id="o-dots" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill="rgba(148,163,184,0.06)" /></pattern>
-            <rect width={W} height={H} fill="url(#o-dots)" />
+            <rect width={W} height={H} fill="url(#o-dots)" style={{ pointerEvents: 'none' }} />
 
             {/* orbit guide rings */}
             {[[RS, C_SERVICE], [RB, C_BAING], [RR, C_REGIONAL]].map(([r, c]) => (
