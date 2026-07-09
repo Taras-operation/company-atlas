@@ -794,7 +794,7 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
               {/* Corner */}
               <th style={{
                 position: 'sticky', left: 0, zIndex: 4,
-                width: 80, minWidth: 80,
+                width: 190, minWidth: 190,
                 background: '#070E1C',
                 borderBottom: '1px solid rgba(148,163,184,0.12)',
                 borderRight: '1px solid rgba(148,163,184,0.12)',
@@ -867,6 +867,7 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
                       {/* Row label */}
                       <td
                         onClick={() => onSelectDepartment?.(String(rowDept.id))}
+                        title={rowDept.name}
                         style={{
                           position: 'sticky', left: 0, zIndex: 2,
                           background: isSelRow
@@ -874,10 +875,10 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
                             : isHovRow ? '#0C1828' : '#070E1C',
                           borderBottom: '1px solid rgba(148,163,184,0.06)',
                           borderRight: `3px solid ${isSelRow ? (rowDept.line?.color || '#3B82F6') : (rowDept.line?.color || '#1E293B')}`,
-                          padding: '0 14px',
+                          padding: '6px 14px',
                           height: 50,
                           transition: 'background 100ms',
-                          maxWidth: 80,
+                          width: 190, maxWidth: 190,
                           cursor: 'pointer',
                         }}
                       >
@@ -885,11 +886,12 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
                           color: isSelRow ? (rowDept.line?.color || '#60A5FA') : isHovRow ? '#F1F5F9' : '#94A3B8',
                           fontSize: 12,
                           fontWeight: isSelRow ? 800 : 600,
-                          whiteSpace: 'nowrap',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
                           overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: 'block',
-                          maxWidth: 65,
+                          lineHeight: 1.25,
+                          maxWidth: 172,
                           transition: 'color 100ms',
                         }}>
                           {rowDept.name}
