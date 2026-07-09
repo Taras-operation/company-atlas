@@ -15,6 +15,17 @@ visualization_bp = Blueprint(
 
 @visualization_bp.route("/")
 def visualization_index():
+    # Gate: the visualization requires a logged-in viewer OR an authenticated admin.
+    # Anyone else is met with the login page first (no public limited view anymore).
+    viewer_id = session.get("visualization_user_id")
+    viewer = ViewerUser.query.get(viewer_id) if viewer_id else None
+    if viewer and not viewer.is_active:
+        session.pop("visualization_user_id", None)
+        viewer = None
+
+    if viewer is None and not current_user.is_authenticated:
+        return render_template("visualization/login.html")
+
     return render_template("visualization/index.html")
 
 
