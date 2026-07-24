@@ -3,6 +3,9 @@
   <p class="visibility-help">
     Налаштування визначають, що саме ця людина зможе бачити у візуалізації компанії.
     Залежні поля автоматично вимикаються, якщо вимкнено батьківський доступ.
+    <br>
+    <strong>Увага:</strong> списки нижче працюють як <em>винятки</em> — те, що ви оберете,
+    буде <strong>приховано</strong> від людини, а решта лишиться видимою.
   </p>
 </div>
 
@@ -23,15 +26,15 @@
 <div class="field">
   <label>Бренди</label>
   <select name="brand_scope" id="brand_scope" data-scope-select data-target-block="visibility_brand_block">
-    <option value="all" {% if not person or person.brand_scope == "all" %}selected{% endif %}>Всі бренди</option>
-    <option value="selected" {% if person and person.brand_scope == "selected" %}selected{% endif %}>Вибрані бренди</option>
-    <option value="none" {% if person and person.brand_scope == "none" %}selected{% endif %}>Не показувати бренди</option>
+    <option value="all" {% if not person or person.brand_scope == "all" %}selected{% endif %}>Показувати всі бренди</option>
+    <option value="selected" {% if person and person.brand_scope == "selected" %}selected{% endif %}>Приховати обрані</option>
+    <option value="none" {% if person and person.brand_scope == "none" %}selected{% endif %}>Приховати всі бренди</option>
   </select>
 
   <div class="visibility-selected-block" id="visibility_brand_block" style="margin-top:12px;">
-    <label>Вибрані бренди</label>
+    <label>Бренди, які приховати</label>
     {% set selected_visibility_brand_ids = person.visibility_brand_links|map(attribute='brand_id')|list if person else [] %}
-    <select name="visibility_brand_ids" id="visibility_brand_ids" class="js-multi-select" multiple data-placeholder="Оберіть бренди">
+    <select name="visibility_brand_ids" id="visibility_brand_ids" class="js-multi-select" multiple data-placeholder="Оберіть бренди, які приховати">
       {% for item in brands %}
         <option value="{{ item.id }}" {% if item.id in selected_visibility_brand_ids %}selected{% endif %}>
           {{ item.name }}
@@ -44,15 +47,15 @@
 <div class="field">
   <label>GEO</label>
   <select name="geo_scope" id="geo_scope" data-scope-select data-target-block="visibility_geo_block">
-    <option value="all" {% if not person or person.geo_scope == "all" %}selected{% endif %}>Всі GEO</option>
-    <option value="selected" {% if person and person.geo_scope == "selected" %}selected{% endif %}>Вибрані GEO</option>
-    <option value="none" {% if person and person.geo_scope == "none" %}selected{% endif %}>Не показувати GEO</option>
+    <option value="all" {% if not person or person.geo_scope == "all" %}selected{% endif %}>Показувати всі GEO</option>
+    <option value="selected" {% if person and person.geo_scope == "selected" %}selected{% endif %}>Приховати обрані</option>
+    <option value="none" {% if person and person.geo_scope == "none" %}selected{% endif %}>Приховати всі GEO</option>
   </select>
 
   <div class="visibility-selected-block" id="visibility_geo_block" style="margin-top:12px;">
-    <label>Вибрані GEO</label>
+    <label>GEO, які приховати</label>
     {% set selected_visibility_geo_ids = person.visibility_geo_links|map(attribute='geo_id')|list if person else [] %}
-    <select name="visibility_geo_ids" id="visibility_geo_ids" class="js-multi-select" multiple data-placeholder="Оберіть GEO">
+    <select name="visibility_geo_ids" id="visibility_geo_ids" class="js-multi-select" multiple data-placeholder="Оберіть GEO, які приховати">
       {% for item in geos %}
         <option value="{{ item.id }}" {% if item.id in selected_visibility_geo_ids %}selected{% endif %}>
           {{ item.name }}
@@ -65,15 +68,15 @@
 <div class="field">
   <label>Відділи</label>
   <select name="department_scope" id="department_scope" data-scope-select data-target-block="visibility_department_block">
-    <option value="all" {% if not person or person.department_scope == "all" %}selected{% endif %}>Всі відділи</option>
-    <option value="selected" {% if person and person.department_scope == "selected" %}selected{% endif %}>Вибрані відділи</option>
-    <option value="none" {% if person and person.department_scope == "none" %}selected{% endif %}>Не показувати відділи</option>
+    <option value="all" {% if not person or person.department_scope == "all" %}selected{% endif %}>Показувати всі відділи</option>
+    <option value="selected" {% if person and person.department_scope == "selected" %}selected{% endif %}>Приховати обрані</option>
+    <option value="none" {% if person and person.department_scope == "none" %}selected{% endif %}>Приховати всі відділи</option>
   </select>
 
   <div class="visibility-selected-block" id="visibility_department_block" style="margin-top:12px;">
-    <label>Вибрані відділи</label>
+    <label>Відділи, які приховати</label>
     {% set selected_visibility_department_ids = person.visibility_department_links|map(attribute='department_id')|list if person else [] %}
-    <select name="visibility_department_ids" id="visibility_department_ids" class="js-multi-select" multiple data-placeholder="Оберіть відділи">
+    <select name="visibility_department_ids" id="visibility_department_ids" class="js-multi-select" multiple data-placeholder="Оберіть відділи, які приховати">
       {% for item in departments %}
         <option value="{{ item.id }}" {% if item.id in selected_visibility_department_ids %}selected{% endif %}>
           {{ item.name }}

@@ -561,6 +561,47 @@ def restore_person(person_id):
     return redirect(url_for("people.archive_people"))
 
 
+@people_bp.route("/<int:person_id>/delete", methods=["POST"])
+@login_required
+def delete_person(person_id):
+    """Permanently remove a person (e.g. they left the company).
+
+    Archiving is the softer option; this wipes the record. References that must
+    survive are cleared first, the rest cascade via the relationship config.
+    """
+    person = Person.query.get_or_404(person_id)
+
+    if not _is_admin():
+        flash("Видаляти людей може лише адміністратор", "danger")
+        return redirect(url_for("people.detail_person", person_id=person.id))
+
+    if not _can_access_person(person):
+        flash("Немає доступу до цієї людини", "danger")
+        return redirect(url_for("people.list_people"))
+
+    full_name = person.full_name
+
+    # Keep subordinates intact — just detach them from this manager.
+    Person.query.filter_by(manager_id=person.id).update({"manager_id": None})
+
+    # An admin account must not disappear with the person; unlink it instead.
+    if person.admin_user:
+        person.admin_user.person_id = None
+
+    log_action(
+        entity_type="person",
+        entity_id=person.id,
+        action="delete",
+        old_data={"full_name": full_name, "department_id": person.department_id},
+    )
+
+    db.session.delete(person)
+    db.session.commit()
+
+    flash(f"Людину «{full_name}» видалено", "success")
+    return redirect(url_for("people.list_people"))
+
+
 @people_bp.route("/<int:person_id>/archive", methods=["POST"])
 @login_required
 def archive_person(person_id):

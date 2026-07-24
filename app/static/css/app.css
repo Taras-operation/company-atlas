@@ -571,6 +571,25 @@ select[multiple] {
 }
 .expand-rest::before { content: "→ "; color: #9ca3af; }
 
+/* Destructive actions, kept visually apart from the normal form actions */
+.danger-zone {
+  margin-top: 28px;
+  padding: 16px 18px;
+  border: 1px solid #f3c6c1;
+  border-radius: 12px;
+  background: #fef6f5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.danger-zone p {
+  margin: 4px 0 0;
+  max-width: 60ch;
+}
+
 /* Action buttons inside table rows — keep them on one tidy line */
 td.row-actions {
   white-space: nowrap;

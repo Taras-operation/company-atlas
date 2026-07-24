@@ -117,5 +117,23 @@
       <a href="{{ url_for('people.detail_person', person_id=person.id) }}" class="btn btn-secondary">Скасувати</a>
     </div>
   </form>
+
+  {% if current_user.admin_role in ['super_admin', 'admin'] %}
+    <div class="danger-zone">
+      <div>
+        <strong>Видалити людину</strong>
+        <p class="muted">
+          Людина зникне назавжди разом із доступом до візуалізації. Якщо співробітник
+          звільнився, але історію варто зберегти — краще
+          <a href="{{ url_for('people.detail_person', person_id=person.id) }}">архівувати</a>.
+        </p>
+      </div>
+
+      <form method="post" action="{{ url_for('people.delete_person', person_id=person.id) }}"
+            onsubmit="return confirm('Видалити «{{ person.full_name }}» назавжди? Дію не можна скасувати.');">
+        <button type="submit" class="btn btn-danger">Видалити людину</button>
+      </form>
+    </div>
+  {% endif %}
 </div>
 {% endblock %}
