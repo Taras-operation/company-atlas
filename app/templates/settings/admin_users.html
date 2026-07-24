@@ -27,19 +27,19 @@
           <td>{{ item.person.full_name if item.person else "—" }}</td>
           <td>{{ item.scoped_department.name if item.scoped_department else "—" }}</td>
           <td>{{ "Так" if item.is_active_user else "Ні" }}</td>
-          <td>
-            <a class="btn btn-secondary" href="{{ url_for('settings.edit_admin_user', user_id=item.id) }}">Редагувати</a>
+          <td class="row-actions">
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('settings.edit_admin_user', user_id=item.id) }}">Редагувати</a>
 
             {% if item.id != current_user.id %}
-              <form method="post" action="{{ url_for('settings.toggle_admin_user_active', user_id=item.id) }}" style="display:inline;">
-                <button type="submit" class="btn btn-secondary">
+              <form method="post" action="{{ url_for('settings.toggle_admin_user_active', user_id=item.id) }}">
+                <button type="submit" class="btn btn-secondary btn-sm">
                   {{ "Деактивувати" if item.is_active_user else "Активувати" }}
                 </button>
               </form>
 
-              <form method="post" action="{{ url_for('settings.delete_admin_user', user_id=item.id) }}" style="display:inline;"
+              <form method="post" action="{{ url_for('settings.delete_admin_user', user_id=item.id) }}"
                     onsubmit="return confirm('Видалити користувача «{{ item.username }}»? Дію не можна скасувати.');">
-                <button type="submit" class="btn btn-danger">Видалити</button>
+                <button type="submit" class="btn btn-danger btn-sm" title="Видалити користувача">Видалити</button>
               </form>
             {% endif %}
           </td>
