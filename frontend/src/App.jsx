@@ -9,6 +9,7 @@ import ReactFlow, {
 } from 'reactflow'
 
 import './App.css'
+import { themed } from './theme'
 import MetroRefMap from './components/MetroMap/MetroRefMap'
 import OrbitMap from './components/OrbitMap/OrbitMap'
 
@@ -678,7 +679,10 @@ function StrengthDots({ strength }) {
   )
 }
 
-function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
+function MatrixView({ payload, light = false, selectedDepartmentId, onSelectDepartment }) {
+  const M = light
+    ? { bg: '#FFFFFF', head: '#F4F6FA', border: 'rgba(15,23,42,0.12)', borderSoft: 'rgba(15,23,42,0.07)', text: '#0F172A', muted: '#475569', faint: '#94A3B8', rowHover: '#F1F5F9' }
+    : { bg: '#070E1C', head: '#070E1C', border: 'rgba(148,163,184,0.12)', borderSoft: 'rgba(148,163,184,0.06)', text: '#E2E8F0', muted: '#94A3B8', faint: '#64748B', rowHover: '#0C1828' }
   const [hoveredCell, setHoveredCell] = useState(null)
   const [hoveredRowId, setHoveredRowId] = useState(null)
   const [hoveredColId, setHoveredColId] = useState(null)
@@ -788,8 +792,8 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
         width: 'max-content',
         minWidth: '100%',
         borderRadius: 18,
-        border: '1px solid rgba(148,163,184,0.12)',
-        background: '#070E1C',
+        border: `1px solid ${M.border}`,
+        background: M.bg,
       }}>
         <table style={{ borderCollapse: 'separate', borderSpacing: 0, minWidth: '100%' }}>
           <thead>
@@ -798,9 +802,9 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
               <th style={{
                 position: 'sticky', left: 0, top: 0, zIndex: 5,
                 width: 190, minWidth: 190,
-                background: '#070E1C',
-                borderBottom: '1px solid rgba(148,163,184,0.12)',
-                borderRight: '1px solid rgba(148,163,184,0.12)',
+                background: M.head,
+                borderBottom: `1px solid ${M.border}`,
+                borderRight: `1px solid ${M.border}`,
                 padding: '14px 16px',
                 textAlign: 'left',
               }}>
@@ -821,11 +825,11 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
                       width: 48, minWidth: 48, maxWidth: 48,
                       background: isSel
                         ? `${dept.line?.color || '#3B82F6'}18`
-                        : isHov ? 'rgba(255,255,255,0.04)' : '#070E1C',
+                        : isHov ? (light ? '#EEF2F7' : 'rgba(255,255,255,0.04)') : M.head,
                       borderBottom: isSel
                         ? `2px solid ${dept.line?.color || '#3B82F6'}`
-                        : '1px solid rgba(148,163,184,0.12)',
-                      borderRight: '1px solid rgba(148,163,184,0.05)',
+                        : `1px solid ${M.border}`,
+                      borderRight: `1px solid ${M.borderSoft}`,
                       padding: '14px 6px 10px',
                       verticalAlign: 'bottom',
                       transition: 'background 100ms',
@@ -849,7 +853,7 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
                         whiteSpace: 'nowrap',
                         fontSize: 11,
                         fontWeight: isSel ? 800 : 600,
-                        color: isSel ? (dept.line?.color || '#60A5FA') : isHov ? '#E2E8F0' : '#64748B',
+                        color: isSel ? (dept.line?.color || '#2563EB') : isHov ? M.text : M.faint,
                         transition: 'color 100ms',
                         letterSpacing: '0.02em',
                       }}>
@@ -876,8 +880,8 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
                           position: 'sticky', left: 0, zIndex: 2,
                           background: isSelRow
                             ? `${rowDept.line?.color || '#3B82F6'}12`
-                            : isHovRow ? '#0C1828' : '#070E1C',
-                          borderBottom: '1px solid rgba(148,163,184,0.06)',
+                            : isHovRow ? M.rowHover : M.head,
+                          borderBottom: `1px solid ${M.borderSoft}`,
                           borderRight: `3px solid ${isSelRow ? (rowDept.line?.color || '#3B82F6') : (rowDept.line?.color || '#1E293B')}`,
                           padding: '6px 14px',
                           height: 50,
@@ -887,7 +891,7 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
                         }}
                       >
                         <span style={{
-                          color: isSelRow ? (rowDept.line?.color || '#60A5FA') : isHovRow ? '#F1F5F9' : '#94A3B8',
+                          color: isSelRow ? (rowDept.line?.color || '#2563EB') : isHovRow ? M.text : M.muted,
                           fontSize: 12,
                           fontWeight: isSelRow ? 800 : 600,
                           display: '-webkit-box',
@@ -921,8 +925,8 @@ function MatrixView({ payload, selectedDepartmentId, onSelectDepartment }) {
                               textAlign: 'center',
                               verticalAlign: 'middle',
                               background: bg,
-                              borderBottom: '1px solid rgba(148,163,184,0.06)',
-                              borderRight: '1px solid rgba(148,163,184,0.05)',
+                              borderBottom: `1px solid ${M.borderSoft}`,
+                              borderRight: `1px solid ${M.borderSoft}`,
                               cursor: rel ? 'pointer' : 'default',
                               transition: 'background 100ms',
                             }}
@@ -988,6 +992,15 @@ function App() {
   const [selectedBrandId, setSelectedBrandId] = useState('')
   const [selectedGeoId, setSelectedGeoId] = useState('')
   const [viewMode, setViewMode] = useState('metro')
+  const [lightMode, setLightMode] = useState(() => {
+    try { return localStorage.getItem('viz-theme') === 'light' } catch { return false }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('viz-theme', lightMode ? 'light' : 'dark') } catch { /* ignore */ }
+  }, [lightMode])
+  const T = lightMode
+    ? { appBg: '#EDF0F5', panelBg: '#FFFFFF', cardBg: '#F7F9FC', cardBg2: '#FFFFFF', border: 'rgba(15,23,42,0.10)', borderSoft: 'rgba(15,23,42,0.06)', headerBg: '#FFFFFF', text: '#0F172A', textMuted: '#3E4C5E', textFaint: '#5B6B80', accent: '#2563EB', inputBg: '#FFFFFF', shadow: '0 1px 3px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.06)', shadowSm: '0 1px 2px rgba(15,23,42,.06)', panelShadow: '0 0 0 1px rgba(15,23,42,.04), 2px 0 16px rgba(15,23,42,.05)' }
+    : { appBg: '#020817', panelBg: '#06101F', cardBg: 'rgba(15, 23, 42, 0.62)', cardBg2: 'rgba(2, 6, 23, 0.82)', border: 'rgba(30, 41, 59, 0.9)', borderSoft: 'rgba(30,41,59,0.95)', headerBg: 'rgba(6, 16, 31, 0.94)', text: '#F8FAFC', textMuted: '#94A3B8', textFaint: '#64748B', accent: '#60A5FA', inputBg: '#020617', shadow: 'none', shadowSm: 'none', panelShadow: 'none' }
   const [layoutPositions, setLayoutPositions] = useState(new Map())
   const [searchQuery, setSearchQuery] = useState('')
   const [isFullCardOpen, setIsFullCardOpen] = useState(false)
@@ -1500,7 +1513,7 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', background: '#020817' }}>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', background: T.appBg }}>
         Loading Metro Visualization...
       </div>
     )
@@ -1513,8 +1526,8 @@ function App() {
         height: '100vh',
         display: 'flex',
         overflow: 'hidden',
-        background: '#020817',
-        color: '#F8FAFC',
+        background: T.appBg,
+        color: T.text,
         fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
@@ -1523,8 +1536,9 @@ function App() {
           width: isSidebarCollapsed ? 56 : 290,
           minWidth: isSidebarCollapsed ? 56 : 290,
           height: '100%',
-          borderRight: '1px solid rgba(30, 41, 59, 0.9)',
-          background: '#06101F',
+          borderRight: `1px solid ${T.border}`,
+          background: T.panelBg,
+          boxShadow: T.panelShadow,
           display: 'flex',
           flexDirection: 'column',
           transition: 'width 220ms ease, min-width 220ms ease',
@@ -1534,19 +1548,19 @@ function App() {
         <div style={{ padding: isSidebarCollapsed ? '16px 10px' : '18px 20px', borderBottom: '1px solid rgba(30, 41, 59, 0.8)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
           {!isSidebarCollapsed && (
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 10, lineHeight: '13px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748B', marginBottom: 6 }}>
+              <div style={{ fontSize: 10, lineHeight: '13px', textTransform: 'uppercase', letterSpacing: '0.18em', color: T.textFaint, marginBottom: 6 }}>
                 CRM Visualization
               </div>
               <h1 style={{ margin: 0, fontSize: 22, lineHeight: '28px', fontWeight: 800, whiteSpace: 'nowrap' }}>
                 Company Map
               </h1>
-              <p style={{ margin: '8px 0 0', color: '#64748B', fontSize: 12, lineHeight: '18px' }}>
+              <p style={{ margin: '8px 0 0', color: T.textFaint, fontSize: 12, lineHeight: '18px' }}>
                 Структура компанії, зв'язки, GEO.
               </p>
             </div>
           )}
           {isSidebarCollapsed && (
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 900, color: '#60A5FA' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: (lightMode ? '#DCE8FC' : 'rgba(59,130,246,0.15)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 900, color: (lightMode ? '#2563EB' : '#60A5FA') }}>
               C
             </div>
           )}
@@ -1557,9 +1571,9 @@ function App() {
               flexShrink: 0,
               width: 28, height: 28,
               borderRadius: 8,
-              border: '1px solid rgba(148,163,184,0.14)',
-              background: 'rgba(15,23,42,0.6)',
-              color: '#64748B',
+              border: `1px solid ${T.border}`,
+              background: T.cardBg, boxShadow: T.shadowSm,
+              color: T.textMuted,
               cursor: 'pointer',
               fontSize: 13,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1583,7 +1597,7 @@ function App() {
                 fontSize: 11,
                 textTransform: 'uppercase',
                 letterSpacing: '0.1em',
-                color: '#64748B',
+                color: T.textFaint,
                 marginBottom: 12,
                 fontWeight: 800,
               }}
@@ -1599,9 +1613,9 @@ function App() {
                 placeholder="Login"
                 style={{
                   borderRadius: 12,
-                  border: '1px solid rgba(148,163,184,.18)',
-                  background: '#020617',
-                  color: '#E2E8F0',
+                  border: `1px solid ${T.border}`,
+                  background: T.inputBg,
+                  color: T.text,
                   fontSize: 13,
                   padding: '10px 12px',
                   outline: 'none',
@@ -1620,9 +1634,9 @@ function App() {
                 }}
                 style={{
                   borderRadius: 12,
-                  border: '1px solid rgba(148,163,184,.18)',
-                  background: '#020617',
-                  color: '#E2E8F0',
+                  border: `1px solid ${T.border}`,
+                  background: T.inputBg,
+                  color: T.text,
                   fontSize: 13,
                   padding: '10px 12px',
                   outline: 'none',
@@ -1635,7 +1649,7 @@ function App() {
                 style={{
                   borderRadius: 12,
                   border: '1px solid rgba(59,130,246,.35)',
-                  background: 'rgba(37,99,235,.18)',
+                  background: (lightMode ? '#DCE8FC' : 'rgba(37,99,235,.18)'),
                   color: '#DBEAFE',
                   fontSize: 13,
                   fontWeight: 800,
@@ -1650,7 +1664,7 @@ function App() {
               {loginError && (
                 <div
                   style={{
-                    color: '#FCA5A5',
+                    color: (lightMode ? '#B91C1C' : '#FCA5A5'),
                     fontSize: 12,
                     lineHeight: '18px',
                   }}
@@ -1667,17 +1681,17 @@ function App() {
 
           {/* Overview */}
           {!isSidebarCollapsed && (
-            <section style={{ border: '1px solid rgba(30, 41, 59, 0.95)', background: 'rgba(15, 23, 42, 0.62)', borderRadius: 18, padding: 16, marginBottom: 20 }}>
-              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', marginBottom: 14, fontWeight: 700 }}>
+            <section style={{ border: `1px solid ${T.borderSoft}`, background: T.cardBg, boxShadow: T.shadowSm, borderRadius: 18, padding: 16, marginBottom: 20 }}>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.textFaint, marginBottom: 14, fontWeight: 700 }}>
                 Overview
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-                <div style={{ border: '1px solid rgba(30, 41, 59, 0.95)', background: 'rgba(2, 6, 23, 0.82)', borderRadius: 14, padding: 12 }}>
-                  <div style={{ fontSize: 11, color: '#64748B', marginBottom: 4 }}>Відділів</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#60A5FA' }}>{totalDepartments}</div>
+                <div style={{ border: `1px solid ${T.borderSoft}`, background: T.cardBg2, borderRadius: 14, padding: 12 }}>
+                  <div style={{ fontSize: 11, color: T.textFaint, marginBottom: 4 }}>Відділів</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: (lightMode ? '#2563EB' : '#60A5FA') }}>{totalDepartments}</div>
                 </div>
-                <div style={{ border: '1px solid rgba(30, 41, 59, 0.95)', background: 'rgba(2, 6, 23, 0.82)', borderRadius: 14, padding: 12 }}>
-                  <div style={{ fontSize: 11, color: '#64748B', marginBottom: 4 }}>Зв'язків</div>
+                <div style={{ border: `1px solid ${T.borderSoft}`, background: T.cardBg2, borderRadius: 14, padding: 12 }}>
+                  <div style={{ fontSize: 11, color: T.textFaint, marginBottom: 4 }}>Зв'язків</div>
                   <div style={{ fontSize: 24, fontWeight: 800, color: '#34D399' }}>{totalRelations}</div>
                 </div>
               </div>
@@ -1686,13 +1700,13 @@ function App() {
                 {[
                   { key: 'high',   label: 'Сильні',   color: '#22C55E', bg: 'rgba(34,197,94,0.18)' },
                   { key: 'medium', label: 'Середні',  color: '#3B82F6', bg: 'rgba(59,130,246,0.18)' },
-                  { key: 'low',    label: 'Слабкі',   color: '#64748B', bg: 'rgba(100,116,139,0.18)' },
+                  { key: 'low',    label: 'Слабкі',   color: T.textFaint, bg: 'rgba(100,116,139,0.18)' },
                 ].map(({ key, label, color, bg }) => {
                   const count = relationStrengthCounts[key]
                   const pct = totalRelations > 0 ? (count / totalRelations) * 100 : 0
                   return (
                     <div key={key}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748B', marginBottom: 3 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: T.textFaint, marginBottom: 3 }}>
                         <span>{label}</span>
                         <span style={{ color, fontWeight: 700 }}>{count}</span>
                       </div>
@@ -1709,7 +1723,7 @@ function App() {
           {/* Navigation */}
           <section style={{ marginBottom: 20 }}>
             {!isSidebarCollapsed && (
-              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', marginBottom: 12, fontWeight: 700 }}>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.textFaint, marginBottom: 12, fontWeight: 700 }}>
                 Navigation
               </div>
             )}
@@ -1754,9 +1768,9 @@ function App() {
                   style={{
                     width: '100%',
                     borderRadius: 12,
-                    border: isActive ? '1px solid rgba(59,130,246,0.45)' : '1px solid rgba(30,41,59,0.95)',
-                    background: isActive ? 'rgba(37,99,235,0.14)' : 'rgba(15,23,42,0.62)',
-                    color: isActive ? '#E2E8F0' : '#94A3B8',
+                    border: isActive ? `1px solid ${T.accent}66` : `1px solid ${T.borderSoft}`,
+                    background: isActive ? (lightMode ? '#E3EDFD' : 'rgba(37,99,235,0.14)') : T.cardBg,
+                    color: isActive ? T.text : T.textMuted,
                     padding: isSidebarCollapsed ? '11px 0' : '11px 14px',
                     marginBottom: 8,
                     display: 'flex',
@@ -1769,14 +1783,14 @@ function App() {
                     transition: 'all 120ms ease',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: isActive ? '#93C5FD' : 'currentColor' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: isActive ? (lightMode ? '#1D4ED8' : '#93C5FD') : 'currentColor' }}>
                     {icon}
                     {!isSidebarCollapsed && <span>{label}</span>}
                   </div>
                   {!isSidebarCollapsed && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {isActive && <span style={{ fontSize: 10, color: '#93C5FD' }}>Active</span>}
-                      <span style={{ fontSize: 10, color: '#334155', background: 'rgba(255,255,255,0.05)', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace' }}>
+                      {isActive && <span style={{ fontSize: 10, color: (lightMode ? '#1D4ED8' : '#93C5FD') }}>Active</span>}
+                      <span style={{ fontSize: 10, color: T.textFaint, background: 'rgba(255,255,255,0.05)', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace' }}>
                         {shortcut}
                       </span>
                     </div>
@@ -1787,18 +1801,18 @@ function App() {
           </section>
 
           {!isSidebarCollapsed && (
-          <section style={{ border: '1px solid rgba(30, 41, 59, 0.95)', background: 'rgba(15, 23, 42, 0.62)', borderRadius: 18, padding: 16 }}>
-            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', marginBottom: 14, fontWeight: 700 }}>
+          <section style={{ border: `1px solid ${T.borderSoft}`, background: T.cardBg, boxShadow: T.shadowSm, borderRadius: 18, padding: 16 }}>
+            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.textFaint, marginBottom: 14, fontWeight: 700 }}>
               Легенда
             </div>
 
             {/* Metro Map legend */}
             {viewMode === 'metro' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12, color: '#CBD5E1' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12, color: T.text }}>
                 {/* Lines from payload */}
                 {payload?.lines?.length > 0 && (
                   <>
-                    <div style={{ color: '#64748B', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
+                    <div style={{ color: T.textFaint, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
                       Лінії
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: 180, overflowY: 'auto' }}>
@@ -1806,10 +1820,10 @@ function App() {
                         <div key={line.id} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                           <span style={{
                             width: 28, height: 4, borderRadius: 2,
-                            background: line.color || '#64748B',
+                            background: themed(line.color || '#64748B', lightMode),
                             flexShrink: 0,
                           }} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#94A3B8', fontSize: 11 }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: T.textMuted, fontSize: 11 }}>
                             {line.name}
                           </span>
                         </div>
@@ -1820,16 +1834,16 @@ function App() {
                 )}
                 {/* Stations */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 999, background: '#0D1B2A', border: '2.5px solid #94A3B8', flexShrink: 0 }} />
+                  <span style={{ width: 10, height: 10, borderRadius: 999, background: T.cardBg, boxShadow: T.shadowSm, border: '2.5px solid #94A3B8', flexShrink: 0 }} />
                   <span>Станція (відділ)</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <span style={{ width: 14, height: 14, borderRadius: 999, background: '#0D1B2A', border: '3px solid #FFFFFF', flexShrink: 0 }} />
+                  <span style={{ width: 14, height: 14, borderRadius: 999, background: T.cardBg, boxShadow: T.shadowSm, border: '3px solid #FFFFFF', flexShrink: 0 }} />
                   <span>Ключовий хаб</span>
                 </div>
                 <div style={{ height: 1, background: 'rgba(148,163,184,0.12)', margin: '2px 0' }} />
                 {/* Relations */}
-                <div style={{ color: '#64748B', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
+                <div style={{ color: T.textFaint, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
                   Зв'язки — сила
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
@@ -1849,14 +1863,14 @@ function App() {
 
             {/* Orbit View legend */}
             {viewMode === 'orbit' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 11, fontSize: 12, color: '#CBD5E1' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 11, fontSize: 12, color: T.text }}>
                 {[
                   { label: 'Сервісні — внутрішня орбіта', color: '#F5B301' },
                   { label: 'Баинг — середня орбіта', color: '#3B82F6' },
                   { label: 'Регіональні — зовнішня орбіта', color: '#22C55E' },
                 ].map(({ label, color }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ width: 11, height: 11, borderRadius: '50%', background: color, boxShadow: `0 0 7px ${color}`, flexShrink: 0 }} />
+                    <span style={{ width: 11, height: 11, borderRadius: '50%', background: themed(color, lightMode), boxShadow: lightMode ? 'none' : `0 0 7px ${color}`, flexShrink: 0 }} />
                     <span>{label}</span>
                   </div>
                 ))}
@@ -1870,7 +1884,7 @@ function App() {
                   <span>Слабший — за вибором відділу</span>
                 </div>
                 <div style={{ height: 1, background: 'rgba(148,163,184,0.12)', margin: '2px 0' }} />
-                <div style={{ color: '#64748B', fontSize: 11, lineHeight: 1.5 }}>
+                <div style={{ color: T.textFaint, fontSize: 11, lineHeight: 1.5 }}>
                   Клік на відділ — відкриває картку з підвідділами та зв'язками
                 </div>
               </div>
@@ -1878,15 +1892,15 @@ function App() {
 
             {/* Matrix View legend */}
             {viewMode === 'matrix' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 11, fontSize: 12, color: '#CBD5E1' }}>
-                <div style={{ color: '#64748B', fontSize: 11, marginBottom: 2 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 11, fontSize: 12, color: T.text }}>
+                <div style={{ color: T.textFaint, fontSize: 11, marginBottom: 2 }}>
                   Рядки = Регіональні<br />Колонки = Сервісні
                 </div>
                 <div style={{ height: 1, background: 'rgba(148,163,184,0.12)', margin: '2px 0' }} />
                 {[
                   { dots: 3, color: '#22C55E', label: 'Сильний зв\'язок' },
                   { dots: 2, color: '#3B82F6', label: 'Середній зв\'язок' },
-                  { dots: 1, color: '#64748B', label: 'Слабкий зв\'язок' },
+                  { dots: 1, color: T.textFaint, label: 'Слабкий зв\'язок' },
                 ].map(({ dots, color, label }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
@@ -1906,7 +1920,7 @@ function App() {
                   <span style={{ color: '#F97316' }}>Критична ({criticalRelations})</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 12, flexShrink: 0, color: '#94A3B8' }}>↔</span>
+                  <span style={{ fontSize: 12, flexShrink: 0, color: T.textMuted }}>↔</span>
                   <span>Двосторонній зв'язок</span>
                 </div>
               </div>
@@ -1916,12 +1930,13 @@ function App() {
         </div>
       </aside>
 
-      <section style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', background: '#020817', overflowX: 'hidden' }}>
+      <section style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', background: T.appBg, overflowX: 'hidden' }}>
         <header
           style={{
             minHeight: 62,
-            borderBottom: '1px solid rgba(30, 41, 59, 0.9)',
-            background: 'rgba(6, 16, 31, 0.94)',
+            borderBottom: `1px solid ${T.border}`,
+            background: T.headerBg,
+            boxShadow: T.shadowSm,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -1934,20 +1949,20 @@ function App() {
           {/* Left: mode + breadcrumb */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexShrink: 0 }}>
             <div style={{ flexShrink: 0 }}>
-              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.18em', color: '#334155', lineHeight: 1 }}>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.18em', color: T.textFaint, lineHeight: 1 }}>
                 Visualization Mode
               </div>
               <div style={{ fontSize: 16, fontWeight: 800, lineHeight: '22px', display: 'flex', alignItems: 'center', gap: 7, marginTop: 1 }}>
                 <span style={{ flexShrink: 0 }}>{viewMode === 'metro' ? 'Metro Topology' : viewMode === 'orbit' ? 'Orbit View' : 'Matrix View'}</span>
                 {selectedDepartmentName && (
                   <>
-                    <span style={{ color: '#334155', fontSize: 14, flexShrink: 0 }}>›</span>
-                    <span style={{ color: '#60A5FA', fontSize: 14, fontWeight: 700, maxWidth: 160, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ color: T.textFaint, fontSize: 14, flexShrink: 0 }}>›</span>
+                    <span style={{ color: (lightMode ? '#2563EB' : '#60A5FA'), fontSize: 14, fontWeight: 700, maxWidth: 160, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {selectedDepartmentName}
                     </span>
                     <button
                       onClick={() => { setSelectedDepartmentId(null); setIsFullCardOpen(false) }}
-                      style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 13, padding: '0 2px', lineHeight: 1 }}
+                      style={{ background: 'none', border: 'none', color: T.textMuted, cursor: 'pointer', fontSize: 13, padding: '0 2px', lineHeight: 1 }}
                       title="Закрити (Esc)"
                     >×</button>
                   </>
@@ -1962,9 +1977,9 @@ function App() {
                 title="Скинути вид (R)"
                 style={{
                   padding: '5px 9px', borderRadius: 8,
-                  border: '1px solid rgba(148,163,184,0.16)',
-                  background: 'rgba(15,23,42,0.6)',
-                  color: '#64748B', fontSize: 12, cursor: 'pointer',
+                  border: `1px solid ${T.border}`,
+                  background: T.cardBg, boxShadow: T.shadowSm,
+                  color: T.textMuted, fontSize: 12, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 5,
                   flexShrink: 0,
                 }}
@@ -1986,9 +2001,9 @@ function App() {
                 style={{
                   flexShrink: 0,
                   padding: '5px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  border: '1px solid rgba(148,163,184,0.18)', borderRadius: 8,
-                  background: 'rgba(59,130,246,0.14)',
-                  color: '#93C5FD',
+                  border: `1px solid ${T.border}`, borderRadius: 8,
+                  background: lightMode ? '#E3EDFD' : 'rgba(59,130,246,0.14)',
+                  color: lightMode ? '#1D4ED8' : (lightMode ? '#1D4ED8' : '#93C5FD'),
                   outline: 'none',
                 }}
               >
@@ -2017,9 +2032,9 @@ function App() {
                   width: 138,
                   minWidth: 90,
                   borderRadius: 10,
-                  border: '1px solid rgba(148, 163, 184, 0.24)',
-                  background: '#020617',
-                  color: '#E2E8F0',
+                  border: `1px solid ${T.border}`,
+                  background: T.inputBg,
+                  color: T.text,
                   fontSize: 13,
                   padding: '8px 10px',
                   outline: 'none',
@@ -2037,7 +2052,7 @@ function App() {
                     overflowY: 'auto',
                     borderRadius: 16,
                     border: '1px solid rgba(148, 163, 184, 0.22)',
-                    background: 'rgba(15, 23, 42, 0.98)',
+                    background: T.panelBg,
                     boxShadow: '0 20px 70px rgba(0,0,0,0.38)',
                     zIndex: 100,
                     padding: 8,
@@ -2052,7 +2067,7 @@ function App() {
                         border: 'none',
                         borderRadius: 12,
                         background: 'transparent',
-                        color: '#E2E8F0',
+                        color: T.text,
                         cursor: 'pointer',
                         padding: 10,
                         textAlign: 'left',
@@ -2075,7 +2090,7 @@ function App() {
                         <span style={{ display: 'block', fontSize: 13, fontWeight: 800 }}>
                           {department.name}
                         </span>
-                        <span style={{ display: 'block', marginTop: 3, fontSize: 11, color: '#94A3B8' }}>
+                        <span style={{ display: 'block', marginTop: 3, fontSize: 11, color: T.textMuted }}>
                           {department.department_type_name || 'Department'}
                         </span>
                       </span>
@@ -2088,7 +2103,7 @@ function App() {
             <select
               value={selectedBrandId}
               onChange={(event) => setSelectedBrandId(event.target.value)}
-              style={{ minWidth: 96, borderRadius: 12, border: '1px solid rgba(148, 163, 184, 0.24)', background: '#020617', color: '#E2E8F0', fontSize: 12, padding: '8px 9px', outline: 'none' }}
+              style={{ minWidth: 96, borderRadius: 12, border: `1px solid ${T.border}`, background: T.inputBg, color: T.text, fontSize: 12, padding: '8px 9px', outline: 'none' }}
             >
               <option value="">All brands</option>
               {payload.filters?.brands?.map((brand) => (
@@ -2100,7 +2115,7 @@ function App() {
               <select
                 value={selectedGeoId}
                 onChange={(event) => setSelectedGeoId(event.target.value)}
-                style={{ minWidth: 96, borderRadius: 12, border: '1px solid rgba(148, 163, 184, 0.24)', background: '#020617', color: '#E2E8F0', fontSize: 12, padding: '8px 9px', outline: 'none' }}
+                style={{ minWidth: 96, borderRadius: 12, border: `1px solid ${T.border}`, background: T.inputBg, color: T.text, fontSize: 12, padding: '8px 9px', outline: 'none' }}
               >
                 <option value="">All GEO</option>
                 {payload.filters?.geos?.map((geo) => (
@@ -2115,7 +2130,7 @@ function App() {
                   setSelectedBrandId('')
                   setSelectedGeoId('')
                 }}
-                style={{ borderRadius: 12, border: '1px solid rgba(148, 163, 184, 0.24)', background: 'rgba(30, 41, 59, 0.9)', color: '#CBD5E1', fontSize: 13, padding: '9px 12px', cursor: 'pointer' }}
+                style={{ borderRadius: 12, border: '1px solid rgba(148, 163, 184, 0.24)', background: 'rgba(30, 41, 59, 0.9)', color: T.text, fontSize: 13, padding: '9px 12px', cursor: 'pointer' }}
               >
                 Reset
               </button>
@@ -2129,9 +2144,9 @@ function App() {
                   title="Конструктор карти"
                   style={{
                     padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                    border: constructorMode ? '1px solid rgba(34,197,94,0.5)' : '1px solid rgba(148,163,184,0.16)',
-                    background: constructorMode ? 'rgba(34,197,94,0.16)' : 'rgba(15,23,42,0.6)',
-                    color: constructorMode ? '#86EFAC' : '#94A3B8',
+                    border: constructorMode ? '1px solid rgba(34,197,94,0.5)' : `1px solid ${T.border}`,
+                    background: constructorMode ? (lightMode ? '#DCFCE7' : 'rgba(34,197,94,0.16)') : T.cardBg,
+                    color: constructorMode ? (lightMode ? '#15803D' : (lightMode ? '#15803D' : '#86EFAC')) : T.textMuted,
                     display: 'flex', alignItems: 'center', gap: 6,
                   }}
                 >
@@ -2157,7 +2172,7 @@ function App() {
                           key={tool}
                           onClick={() => { setConstructorTool(tool); setConstructorMode(true); setShowConstructorMenu(false) }}
                           title={hint}
-                          style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: isActive ? 'rgba(34,197,94,0.16)' : 'transparent', color: isActive ? '#86EFAC' : '#E2E8F0', display: 'flex', alignItems: 'center', gap: 8 }}
+                          style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: isActive ? 'rgba(34,197,94,0.16)' : 'transparent', color: isActive ? (lightMode ? '#15803D' : '#86EFAC') : '#E2E8F0', display: 'flex', alignItems: 'center', gap: 8 }}
                         >
                           {icon} {label}
                         </button>
@@ -2168,9 +2183,9 @@ function App() {
                       <button
                         onClick={() => { saveLineGeometry({ ...lineGeometry, hidden: [] }); setShowConstructorMenu(false) }}
                         title="Повернути всі приховані лінії та станції"
-                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: '#93C5FD', display: 'flex', alignItems: 'center', gap: 8 }}
+                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: (lightMode ? '#1D4ED8' : '#93C5FD'), display: 'flex', alignItems: 'center', gap: 8 }}
                       >
-                        ♻ Показати приховані <span style={{ marginLeft: 'auto', fontSize: 10, color: '#64748B' }}>{lineGeometry.hidden.length}</span>
+                        ♻ Показати приховані <span style={{ marginLeft: 'auto', fontSize: 10, color: T.textFaint }}>{lineGeometry.hidden.length}</span>
                       </button>
                     )}
                     {constructorMode && (
@@ -2180,14 +2195,14 @@ function App() {
                         title="Скасувати останню зміну (Cmd+Z)"
                         style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: geometryHistoryLen === 0 ? 'not-allowed' : 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: geometryHistoryLen === 0 ? '#475569' : '#E2E8F0', display: 'flex', alignItems: 'center', gap: 8 }}
                       >
-                        ↶ Назад {geometryHistoryLen > 0 && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#64748B' }}>{geometryHistoryLen}</span>}
+                        ↶ Назад {geometryHistoryLen > 0 && <span style={{ marginLeft: 'auto', fontSize: 10, color: T.textFaint }}>{geometryHistoryLen}</span>}
                       </button>
                     )}
                     {constructorMode && (
                       <button
                         onClick={() => { if (window.confirm('Скинути ВСІ ручні зміни розташування для цього режиму та повернути авто-вигляд?')) { saveLineGeometry({}); setShowConstructorMenu(false) } }}
                         title="Прибрати всі ручні позиції, повороти, гілки та приховування — повернути авто-розкладку"
-                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: '#FCA5A5', display: 'flex', alignItems: 'center', gap: 8 }}
+                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: (lightMode ? '#B91C1C' : '#FCA5A5'), display: 'flex', alignItems: 'center', gap: 8 }}
                       >
                         ♻ Скинути все розташування
                       </button>
@@ -2196,7 +2211,7 @@ function App() {
                       <button
                         onClick={() => { deleteSelectedConstructorElement(); setShowConstructorMenu(false) }}
                         title="Видалити вибраний елемент (Delete)"
-                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'rgba(239,68,68,0.1)', color: '#FCA5A5', display: 'flex', alignItems: 'center', gap: 8 }}
+                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: (lightMode ? '#FDE2E2' : 'rgba(239,68,68,0.1)'), color: (lightMode ? '#B91C1C' : '#FCA5A5'), display: 'flex', alignItems: 'center', gap: 8 }}
                       >
                         🗑 Видалити {selectedConstructorElement.type === 'wp' ? 'поворот' : 'відгалуження'}
                       </button>
@@ -2204,7 +2219,7 @@ function App() {
                     {constructorMode && (
                       <button
                         onClick={() => { setConstructorMode(false); setSelectedConstructorElement(null); setShowConstructorMenu(false) }}
-                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: '#FCA5A5', display: 'flex', alignItems: 'center', gap: 8 }}
+                        style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, cursor: 'pointer', padding: '10px 12px', fontSize: 13, fontWeight: 700, background: 'transparent', color: (lightMode ? '#B91C1C' : '#FCA5A5'), display: 'flex', alignItems: 'center', gap: 8 }}
                       >
                         ✕ Вийти з конструктора
                       </button>
@@ -2214,6 +2229,20 @@ function App() {
               </div>
             )}
 
+            {/* Theme toggle */}
+            <button
+              onClick={() => setLightMode((v) => !v)}
+              title={lightMode ? 'Темна тема' : 'Світла тема'}
+              style={{
+                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                border: `1px solid ${lightMode ? 'rgba(15,23,42,0.14)' : 'rgba(148,163,184,0.16)'}`,
+                background: lightMode ? '#F1F5F9' : 'rgba(15,23,42,0.6)',
+                color: lightMode ? '#B45309' : '#94A3B8',
+                fontSize: 14, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >{lightMode ? '☀' : '☾'}</button>
+
             {/* Legend popover button */}
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <button
@@ -2221,9 +2250,9 @@ function App() {
                 title="Легенда"
                 style={{
                   width: 32, height: 32, borderRadius: 8,
-                  border: showLegendPopover ? '1px solid rgba(59,130,246,0.45)' : '1px solid rgba(148,163,184,0.16)',
-                  background: showLegendPopover ? 'rgba(37,99,235,0.14)' : 'rgba(15,23,42,0.6)',
-                  color: showLegendPopover ? '#60A5FA' : '#64748B',
+                  border: showLegendPopover ? `1px solid ${T.accent}66` : `1px solid ${T.border}`,
+                  background: showLegendPopover ? (lightMode ? '#E3EDFD' : 'rgba(37,99,235,0.14)') : T.cardBg,
+                  color: showLegendPopover ? T.accent : T.textMuted,
                   fontSize: 13, fontWeight: 800, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
@@ -2237,15 +2266,15 @@ function App() {
                   border: '1px solid rgba(148,163,184,0.18)', borderRadius: 16,
                   padding: 16, boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
                 }}>
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', marginBottom: 12, fontWeight: 700 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.textFaint, marginBottom: 12, fontWeight: 700 }}>
                     Легенда — {viewMode === 'metro' ? 'Metro' : viewMode === 'orbit' ? 'Orbit' : 'Matrix'}
                   </div>
                   {viewMode === 'metro' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: '#CBD5E1' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: T.text }}>
                       {payload?.lines?.map((line) => (
                         <div key={line.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ width: 24, height: 3, borderRadius: 2, background: line.color, flexShrink: 0 }} />
-                          <span style={{ color: '#94A3B8' }}>{line.name}</span>
+                          <span style={{ color: T.textMuted }}>{line.name}</span>
                         </div>
                       ))}
                       <div style={{ height: 1, background: 'rgba(148,163,184,0.1)', margin: '2px 0' }} />
@@ -2258,13 +2287,13 @@ function App() {
                         <span>Звичайний зв'язок</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#0D1B2A', border: '2px solid #fff', flexShrink: 0 }} />
+                        <span style={{ width: 11, height: 11, borderRadius: '50%', background: T.cardBg, boxShadow: T.shadowSm, border: '2px solid #fff', flexShrink: 0 }} />
                         <span>Ключовий хаб</span>
                       </div>
                     </div>
                   )}
                   {viewMode === 'orbit' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: '#CBD5E1' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: T.text }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ width: 11, height: 11, borderRadius: '50%', border: '2px solid #3B82F6', background: 'transparent', flexShrink: 0 }} />
                         <span>Регіональний — зовнішнє кільце</span>
@@ -2285,12 +2314,12 @@ function App() {
                     </div>
                   )}
                   {viewMode === 'matrix' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: '#CBD5E1' }}>
-                      <div style={{ color: '#64748B', marginBottom: 2 }}>Рядки = Регіональні<br/>Колонки = Сервісні</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: T.text }}>
+                      <div style={{ color: T.textFaint, marginBottom: 2 }}>Рядки = Регіональні<br/>Колонки = Сервісні</div>
                       {[
                         { dots: 3, color: '#22C55E', label: 'Сильний' },
                         { dots: 2, color: '#3B82F6', label: 'Середній' },
-                        { dots: 1, color: '#64748B', label: 'Слабкий' },
+                        { dots: 1, color: T.textFaint, label: 'Слабкий' },
                       ].map(({ dots, color, label }) => (
                         <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{ display: 'flex', gap: 2.5, flexShrink: 0 }}>
@@ -2319,7 +2348,7 @@ function App() {
                 gap: 8,
                 borderRadius: 12,
                 border: '1px solid rgba(34,197,94,0.22)',
-                background: 'rgba(34,197,94,0.07)',
+                background: (lightMode ? '#E8FBEE' : 'rgba(34,197,94,0.07)'),
                 padding: '6px 10px 6px 6px',
                 flexShrink: 0,
               }}>
@@ -2337,10 +2366,10 @@ function App() {
                 {/* Name + role — hidden on narrow windows to keep the header from overflowing */}
                 {!isCompactView && (
                   <div style={{ lineHeight: 1.3 }}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#86EFAC', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: (lightMode ? '#15803D' : '#86EFAC'), whiteSpace: 'nowrap' }}>
                       {currentVisualizationUser?.display_name || currentVisualizationUser?.username || (payload?.is_admin ? 'Адміністратор' : 'Гість')}
                     </div>
-                    <div style={{ fontSize: 10, color: '#64748B', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 10, color: T.textFaint, whiteSpace: 'nowrap' }}>
                       {payload?.is_admin ? (payload.admin_role || 'admin') : (currentVisualizationUser?.role || 'viewer')}
                     </div>
                   </div>
@@ -2354,8 +2383,8 @@ function App() {
                     padding: '4px 8px',
                     borderRadius: 8,
                     border: '1px solid rgba(148,163,184,0.16)',
-                    background: 'rgba(15,23,42,0.6)',
-                    color: '#94A3B8',
+                    background: T.cardBg, boxShadow: T.shadowSm,
+                    color: T.textMuted,
                     fontSize: 11,
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -2373,11 +2402,12 @@ function App() {
         </header>
 
         <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
-          <main style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', background: '#020817' }}>
+          <main style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', background: T.appBg }}>
             {viewMode === 'metro' && (
               <>
               <MapErrorBoundary resetKey={`${mapResetKey}-${metroLayout}`} onReset={() => { saveLineGeometry({ ...lineGeometry, lineEnds: undefined }); setMapResetKey((k) => k + 1) }}>
               <MetroRefMap
+                light={lightMode}
                 key={`metro2-${mapResetKey}-${metroLayout}-${Object.keys(hiddenTypes).filter((k) => hiddenTypes[k]).sort().join(',')}`}
                 payload={metroPayload}
                 layoutMode={metroLayout}
@@ -2407,7 +2437,8 @@ function App() {
                 <div style={{
                   position: 'absolute', top: 14, left: 14, zIndex: 20,
                   display: 'flex', alignItems: 'center', gap: 4,
-                  background: 'rgba(9,18,33,0.82)', border: '1px solid rgba(148,163,184,0.18)',
+                  background: lightMode ? 'rgba(255,255,255,0.92)' : 'rgba(9,18,33,0.82)',
+                  border: `1px solid ${T.border}`,
                   borderRadius: 11, padding: '5px 6px', backdropFilter: 'blur(10px)',
                 }}>
                   {metroTypes.map(({ name, color }) => {
@@ -2424,8 +2455,8 @@ function App() {
                           transition: 'opacity 120ms',
                         }}
                       >
-                        <span style={{ width: 11, height: 11, borderRadius: '50%', background: on ? color : '#475569', boxShadow: on ? `0 0 8px ${color}` : 'none', flexShrink: 0 }} />
-                        <span style={{ color: on ? '#CBD5E1' : '#64748B', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{name}</span>
+                        <span style={{ width: 11, height: 11, borderRadius: '50%', background: on ? themed(color, lightMode) : '#94A3B8', boxShadow: on && !lightMode ? `0 0 8px ${color}` : 'none', flexShrink: 0 }} />
+                        <span style={{ color: on ? T.text : T.textFaint, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{name}</span>
                       </button>
                     )
                   })}
@@ -2437,6 +2468,7 @@ function App() {
             {viewMode === 'orbit' && (
               <>
                 <OrbitMap
+                  light={lightMode}
                   key={mapResetKey}
                   payload={payload}
                   selectedDepartmentId={selectedDepartmentId}
@@ -2455,7 +2487,7 @@ function App() {
                 />
 
                 {payload && orbitNodes.length === 0 && (
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', pointerEvents: 'none', zIndex: 20 }}>
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.textMuted, pointerEvents: 'none', zIndex: 20 }}>
                     Немає відділів для обраних фільтрів.
                   </div>
                 )}
@@ -2464,6 +2496,7 @@ function App() {
 
             {viewMode === 'matrix' && payload && (
               <MatrixView
+                light={lightMode}
                 payload={payload}
                 selectedDepartmentId={selectedDepartmentId}
                 onSelectDepartment={(id) => {
@@ -2483,7 +2516,7 @@ function App() {
               minWidth: selectedDepartment ? 360 : 72,
               height: '100%',
               borderLeft: '1px solid rgba(30, 41, 59, 0.9)',
-              background: '#06101F',
+              background: T.panelBg,
               display: 'flex',
               flexDirection: 'column',
               transition: 'width 220ms ease, min-width 220ms ease',
@@ -2497,7 +2530,7 @@ function App() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#64748B',
+                  color: T.textFaint,
                   writingMode: 'vertical-rl',
                   transform: 'rotate(180deg)',
                   fontSize: 12,
@@ -2517,11 +2550,11 @@ function App() {
                 <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(30,41,59,0.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-                      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#64748B', fontWeight: 700 }}>
+                      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.14em', color: T.textFaint, fontWeight: 700 }}>
                         {selectedDepartment.department_type_name || 'Відділ'}
                       </div>
                       {hubDepartmentIds.has(String(selectedDepartment.id)) && (
-                        <span style={{ borderRadius: 6, border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.13)', color: '#FDBA74', fontSize: 9, fontWeight: 800, padding: '2px 6px' }}>
+                        <span style={{ borderRadius: 6, border: '1px solid rgba(249,115,22,0.4)', background: (lightMode ? '#FEE8D8' : 'rgba(249,115,22,0.13)'), color: (lightMode ? '#C2410C' : '#FDBA74'), fontSize: 9, fontWeight: 800, padding: '2px 6px' }}>
                           Hub
                         </span>
                       )}
@@ -2532,7 +2565,7 @@ function App() {
                   </div>
                   <button
                     onClick={() => { setSelectedDepartmentId(null); setHoveredDepartmentId(null); setIsFullCardOpen(false); setSelectedPerson(null); setIsDepartmentInfoExpanded(false); setIsRelationsPanelOpen(false); setHoveredRelationId(null) }}
-                    style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 7, border: '1px solid rgba(148,163,184,.16)', background: 'transparent', color: '#475569', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 7, border: '1px solid rgba(148,163,184,.16)', background: 'transparent', color: T.textMuted, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     title="Закрити (Esc)"
                   >×</button>
                 </div>
@@ -2540,27 +2573,27 @@ function App() {
                 <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
                   {/* Description */}
-                  <section style={{ borderRadius: 14, border: '1px solid rgba(30,41,59,0.9)', background: 'rgba(15,23,42,0.6)', padding: 14 }}>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#475569', marginBottom: 8, fontWeight: 700 }}>Опис</div>
+                  <section style={{ borderRadius: 14, border: '1px solid rgba(30,41,59,0.9)', background: T.cardBg, boxShadow: T.shadowSm, padding: 14 }}>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.textMuted, marginBottom: 8, fontWeight: 700 }}>Опис</div>
                     {selectedDepartment.short_description ? (
                       <div
                         className="rich-text"
-                        style={{ margin: 0, color: '#94A3B8', fontSize: 13, lineHeight: '20px' }}
+                        style={{ margin: 0, color: T.textMuted, fontSize: 13, lineHeight: '20px' }}
                         dangerouslySetInnerHTML={{ __html: selectedDepartment.short_description }}
                       />
                     ) : (
-                      <p style={{ margin: 0, color: '#334155', fontSize: 13, fontStyle: 'italic' }}>Не заповнено</p>
+                      <p style={{ margin: 0, color: T.textFaint, fontSize: 13, fontStyle: 'italic' }}>Не заповнено</p>
                     )}
                     {!isPublicView && (
                       <button
                         onClick={() => setIsFullCardOpen(true)}
-                        style={{ width: '100%', marginTop: 12, borderRadius: 10, border: '1px solid rgba(59,130,246,0.3)', background: 'rgba(37,99,235,0.12)', color: '#93C5FD', padding: '9px 12px', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+                        style={{ width: '100%', marginTop: 12, borderRadius: 10, border: '1px solid rgba(59,130,246,0.3)', background: (lightMode ? '#E4EDFD' : 'rgba(37,99,235,0.12)'), color: (lightMode ? '#1D4ED8' : '#93C5FD'), padding: '9px 12px', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
                       >
                         Відкрити повну картку →
                       </button>
                     )}
                     {isPublicView && (
-                      <div style={{ marginTop: 10, borderRadius: 10, border: '1px solid rgba(148,163,184,0.15)', background: 'rgba(15,23,42,0.6)', color: '#475569', padding: '9px 12px', fontSize: 12 }}>
+                      <div style={{ marginTop: 10, borderRadius: 10, border: '1px solid rgba(148,163,184,0.15)', background: T.cardBg, boxShadow: T.shadowSm, color: T.textMuted, padding: '9px 12px', fontSize: 12 }}>
                         Детальна інформація доступна після входу.
                       </div>
                     )}
@@ -2568,15 +2601,15 @@ function App() {
 
                   {/* Relation strength breakdown */}
                   {!isPublicView && selectedRelations.length > 0 && (
-                    <section style={{ borderRadius: 14, border: '1px solid rgba(30,41,59,0.9)', background: 'rgba(15,23,42,0.6)', padding: 14 }}>
+                    <section style={{ borderRadius: 14, border: '1px solid rgba(30,41,59,0.9)', background: T.cardBg, boxShadow: T.shadowSm, padding: 14 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#475569', fontWeight: 700 }}>Зв'язки</div>
-                        <span style={{ fontSize: 18, fontWeight: 900, color: '#60A5FA' }}>{selectedRelations.length}</span>
+                        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.textMuted, fontWeight: 700 }}>Зв'язки</div>
+                        <span style={{ fontSize: 18, fontWeight: 900, color: (lightMode ? '#2563EB' : '#60A5FA') }}>{selectedRelations.length}</span>
                       </div>
                       {[
                         { key: 'high',   label: 'Сильні',  color: '#22C55E' },
                         { key: 'medium', label: 'Середні', color: '#3B82F6' },
-                        { key: 'low',    label: 'Слабкі',  color: '#64748B' },
+                        { key: 'low',    label: 'Слабкі',  color: T.textFaint },
                       ].map(({ key, label, color }) => {
                         const cnt = selectedRelations.filter((r) => String(r.strength || 'medium').toLowerCase() === key).length
                         if (!cnt) return null
@@ -2597,14 +2630,14 @@ function App() {
 
                   {/* Brands / GEO */}
                   {((selectedDepartment.brand_names?.length > 0) || (selectedDepartment.geo_names?.length > 0)) && (
-                    <section style={{ borderRadius: 14, border: '1px solid rgba(30,41,59,0.9)', background: 'rgba(15,23,42,0.6)', padding: 14 }}>
-                      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#475569', marginBottom: 10, fontWeight: 700 }}>Бренди / ГЕО</div>
+                    <section style={{ borderRadius: 14, border: '1px solid rgba(30,41,59,0.9)', background: T.cardBg, boxShadow: T.shadowSm, padding: 14 }}>
+                      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.textMuted, marginBottom: 10, fontWeight: 700 }}>Бренди / ГЕО</div>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {selectedDepartment.brand_names?.map((b) => (
-                          <span key={b} style={{ borderRadius: 8, padding: '4px 9px', fontSize: 11, fontWeight: 700, border: '1px solid rgba(59,130,246,.3)', background: 'rgba(59,130,246,.1)', color: '#93C5FD' }}>{b}</span>
+                          <span key={b} style={{ borderRadius: 8, padding: '4px 9px', fontSize: 11, fontWeight: 700, border: '1px solid rgba(59,130,246,.3)', background: (lightMode ? '#E4EDFD' : 'rgba(59,130,246,.1)'), color: (lightMode ? '#1D4ED8' : '#93C5FD') }}>{b}</span>
                         ))}
                         {selectedDepartment.geo_names?.map((g) => (
-                          <span key={g} style={{ borderRadius: 8, padding: '4px 9px', fontSize: 11, fontWeight: 700, border: '1px solid rgba(34,197,94,.3)', background: 'rgba(34,197,94,.1)', color: '#86EFAC' }}>{g}</span>
+                          <span key={g} style={{ borderRadius: 8, padding: '4px 9px', fontSize: 11, fontWeight: 700, border: '1px solid rgba(34,197,94,.3)', background: (lightMode ? '#DCFCE7' : 'rgba(34,197,94,.1)'), color: (lightMode ? '#15803D' : '#86EFAC') }}>{g}</span>
                         ))}
                       </div>
                     </section>
@@ -2612,12 +2645,12 @@ function App() {
 
                   {/* Connected departments */}
                   {!isPublicView && (
-                    <section style={{ borderRadius: 14, border: '1px solid rgba(30,41,59,0.9)', background: 'rgba(15,23,42,0.6)', padding: 14 }}>
+                    <section style={{ borderRadius: 14, border: '1px solid rgba(30,41,59,0.9)', background: T.cardBg, boxShadow: T.shadowSm, padding: 14 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#475569', fontWeight: 700 }}>Пов'язані відділи</div>
+                        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.textMuted, fontWeight: 700 }}>Пов'язані відділи</div>
                         {selectedRelationCards.length > 0 && (
                           <button onClick={() => setIsRelationsPanelOpen(true)}
-                            style={{ borderRadius: 7, border: '1px solid rgba(59,130,246,.3)', background: 'rgba(59,130,246,.1)', color: '#93C5FD', fontSize: 10, fontWeight: 800, padding: '3px 8px', cursor: 'pointer' }}>
+                            style={{ borderRadius: 7, border: '1px solid rgba(59,130,246,.3)', background: (lightMode ? '#E4EDFD' : 'rgba(59,130,246,.1)'), color: (lightMode ? '#1D4ED8' : '#93C5FD'), fontSize: 10, fontWeight: 800, padding: '3px 8px', cursor: 'pointer' }}>
                             Всі
                           </button>
                         )}
@@ -2628,12 +2661,12 @@ function App() {
                           return (
                             <button key={relation.id}
                               onClick={() => { setSelectedDepartmentId(relation.connectedDepartmentId); setIsFullCardOpen(false); setSelectedPerson(null); setIsDepartmentInfoExpanded(false); setIsRelationsPanelOpen(false); setHoveredRelationId(null) }}
-                              style={{ width: '100%', textAlign: 'left', borderRadius: 10, border: '1px solid rgba(30,41,59,0.8)', background: 'rgba(2,6,23,0.5)', color: '#E2E8F0', padding: '9px 11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 9 }}
+                              style={{ width: '100%', textAlign: 'left', borderRadius: 10, border: `1px solid ${T.borderSoft}`, background: T.cardBg, boxShadow: T.shadowSm, color: T.text, padding: '9px 11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 9 }}
                             >
                               <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, background: sc.color, flexShrink: 0 }} />
                               <div style={{ minWidth: 0, flex: 1 }}>
                                 <div style={{ fontSize: 12, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{relation.connectedDepartmentName}</div>
-                                <div style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>{relation.relation_type_name || relation.directionLabel}</div>
+                                <div style={{ fontSize: 11, color: T.textFaint, marginTop: 2 }}>{relation.relation_type_name || relation.directionLabel}</div>
                               </div>
                               <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
                                 {[1,2,3].map((i) => <div key={i} style={{ width: 4, height: 4, borderRadius: '50%', background: i <= sc.dots ? sc.color : 'rgba(255,255,255,0.08)' }} />)}
@@ -2641,11 +2674,11 @@ function App() {
                             </button>
                           )
                         }) : (
-                          <span style={{ color: '#334155', fontSize: 12 }}>Немає активних зв'язків.</span>
+                          <span style={{ color: T.textFaint, fontSize: 12 }}>Немає активних зв'язків.</span>
                         )}
                         {selectedRelationCards.length > 5 && (
                           <button onClick={() => setIsRelationsPanelOpen(true)}
-                            style={{ borderRadius: 10, border: '1px solid rgba(148,163,184,.14)', background: 'transparent', color: '#475569', fontSize: 11, fontWeight: 700, padding: '7px 10px', cursor: 'pointer' }}>
+                            style={{ borderRadius: 10, border: '1px solid rgba(148,163,184,.14)', background: 'transparent', color: T.textMuted, fontSize: 11, fontWeight: 700, padding: '7px 10px', cursor: 'pointer' }}>
                             + Ще {selectedRelationCards.length - 5}
                           </button>
                         )}
@@ -2665,7 +2698,7 @@ function App() {
             position: 'fixed',
             inset: 0,
             zIndex: 200,
-            background: 'rgba(2, 6, 23, 0.78)',
+            background: lightMode ? 'rgba(15, 23, 42, 0.35)' : 'rgba(2, 6, 23, 0.78)',
             backdropFilter: 'blur(10px)',
             display: 'flex',
             justifyContent: 'center',
@@ -2679,15 +2712,15 @@ function App() {
               maxHeight: '92vh',
               overflowY: 'auto',
               borderRadius: 28,
-              border: '1px solid rgba(148,163,184,.16)',
-              background: 'linear-gradient(180deg, #0F172A 0%, #020617 100%)',
-              boxShadow: '0 30px 120px rgba(0,0,0,.55)',
+              border: `1px solid ${T.border}`,
+              background: lightMode ? '#FFFFFF' : 'linear-gradient(180deg, #0F172A 0%, #020617 100%)',
+              boxShadow: lightMode ? '0 30px 90px rgba(15,23,42,.18)' : '0 30px 120px rgba(0,0,0,.55)',
             }}
           >
             <div
               style={{
                 padding: '28px 32px',
-                borderBottom: '1px solid rgba(30,41,59,.9)',
+                borderBottom: `1px solid ${T.border}`,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'flex-start',
@@ -2695,17 +2728,17 @@ function App() {
               }}
             >
               <div>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.16em', color: '#64748B', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.16em', color: T.textFaint, marginBottom: 10 }}>
                   Картка відділу
                 </div>
 
-                <h2 style={{ margin: 0, fontSize: 34, lineHeight: '40px', fontWeight: 900, color: '#F8FAFC' }}>
+                <h2 style={{ margin: 0, fontSize: 34, lineHeight: '40px', fontWeight: 900, color: T.text }}>
                   {selectedDepartment.name}
                 </h2>
 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
                   {selectedDepartment.size_label && (
-                    <span style={{ borderRadius: 999, padding: '8px 12px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(148,163,184,.25)', background: 'rgba(148,163,184,.12)', color: '#CBD5E1' }}>
+                    <span style={{ borderRadius: 999, padding: '8px 12px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(148,163,184,.25)', background: 'rgba(148,163,184,.12)', color: T.text }}>
                       Size: {selectedDepartment.size_label}
                     </span>
                   )}
@@ -2722,7 +2755,7 @@ function App() {
                         fontWeight: 700,
                         border: leader.inherited ? '1px solid rgba(148,163,184,.35)' : '1px solid rgba(251,146,60,.35)',
                         background: leader.inherited ? 'rgba(148,163,184,.12)' : 'rgba(251,146,60,.12)',
-                        color: leader.inherited ? '#CBD5E1' : '#FDBA74',
+                        color: leader.inherited ? '#CBD5E1' : (lightMode ? '#C2410C' : '#FDBA74'),
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -2747,9 +2780,9 @@ function App() {
                 }}
                 style={{
                   borderRadius: 14,
-                  border: '1px solid rgba(148,163,184,.18)',
-                  background: 'rgba(15,23,42,.8)',
-                  color: '#CBD5E1',
+                  border: `1px solid ${T.border}`,
+                  background: T.cardBg, boxShadow: T.shadowSm,
+                  color: T.text,
                   padding: '10px 14px',
                   fontSize: 13,
                   fontWeight: 700,
@@ -2774,11 +2807,11 @@ function App() {
                   style={{
                     borderRadius: 22,
                     border: '1px solid rgba(30,41,59,.9)',
-                    background: 'rgba(15,23,42,.62)',
+                    background: T.cardBg, boxShadow: T.shadowSm,
                     padding: 24,
                   }}
                 >
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748B', marginBottom: 18, fontWeight: 800 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textFaint, marginBottom: 18, fontWeight: 800 }}>
                     Повна інформація та функціонал
                   </div>
 
@@ -2786,7 +2819,7 @@ function App() {
                     <div
                       className="rich-text"
                       style={{
-                        color: '#CBD5E1',
+                        color: T.text,
                         fontSize: 15,
                         lineHeight: '28px',
                         maxHeight: isDepartmentInfoExpanded ? 'none' : 180,
@@ -2795,13 +2828,13 @@ function App() {
                       dangerouslySetInnerHTML={{ __html: selectedDepartment.full_description || selectedDepartment.short_description }}
                     />
                   ) : (
-                    <div style={{ color: '#475569', fontStyle: 'italic', fontSize: 15 }}>Повна інформація ще не заповнена.</div>
+                    <div style={{ color: T.textMuted, fontStyle: 'italic', fontSize: 15 }}>Повна інформація ще не заповнена.</div>
                   )}
 
                   {(selectedDepartment.full_description || selectedDepartment.short_description || '').length > 420 && (
                     <button
                       onClick={() => setIsDepartmentInfoExpanded((value) => !value)}
-                      style={{ marginTop: 16, borderRadius: 14, border: '1px solid rgba(59,130,246,.35)', background: 'rgba(59,130,246,.12)', color: '#93C5FD', padding: '10px 14px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
+                      style={{ marginTop: 16, borderRadius: 14, border: '1px solid rgba(59,130,246,.35)', background: (lightMode ? '#E4EDFD' : 'rgba(59,130,246,.12)'), color: (lightMode ? '#1D4ED8' : '#93C5FD'), padding: '10px 14px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
                     >
                       {isDepartmentInfoExpanded ? 'Сховати' : 'Показати більше'}
                     </button>
@@ -2812,11 +2845,11 @@ function App() {
                   style={{
                     borderRadius: 22,
                     border: '1px solid rgba(30,41,59,.9)',
-                    background: 'rgba(15,23,42,.62)',
+                    background: T.cardBg, boxShadow: T.shadowSm,
                     padding: 24,
                   }}
                 >
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748B', marginBottom: 18, fontWeight: 800 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textFaint, marginBottom: 18, fontWeight: 800 }}>
                     Підвідділи
                   </div>
 
@@ -2826,18 +2859,18 @@ function App() {
                         <button
                           key={child.id}
                           onClick={() => { setSelectedDepartmentId(String(child.id)); setSelectedPerson(null); setIsDepartmentInfoExpanded(false) }}
-                          style={{ width: '100%', textAlign: 'left', cursor: 'pointer', borderRadius: 14, border: '1px solid rgba(30,41,59,.8)', background: 'rgba(2,6,23,.4)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10 }}
+                          style={{ width: '100%', textAlign: 'left', cursor: 'pointer', borderRadius: 14, border: `1px solid ${T.borderSoft}`, background: T.cardBg, boxShadow: T.shadowSm, padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10 }}
                         >
                           <div style={{ width: 3, height: 32, borderRadius: 2, background: child.line?.color || '#64748B', flexShrink: 0 }} />
                           <div>
-                            <div style={{ color: '#E2E8F0', fontSize: 13, fontWeight: 800 }}>{child.name}</div>
-                            <div style={{ color: '#64748B', fontSize: 11, marginTop: 2 }}>{child.department_type_name}</div>
+                            <div style={{ color: T.text, fontSize: 13, fontWeight: 800 }}>{child.name}</div>
+                            <div style={{ color: T.textFaint, fontSize: 11, marginTop: 2 }}>{child.department_type_name}</div>
                           </div>
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <div style={{ color: '#475569', fontSize: 13, fontStyle: 'italic' }}>Підвідділів ще немає.</div>
+                    <div style={{ color: T.textMuted, fontSize: 13, fontStyle: 'italic' }}>Підвідділів ще немає.</div>
                   )}
                 </section>
 
@@ -2845,11 +2878,11 @@ function App() {
                   style={{
                     borderRadius: 22,
                     border: '1px solid rgba(30,41,59,.9)',
-                    background: 'rgba(15,23,42,.62)',
+                    background: T.cardBg, boxShadow: T.shadowSm,
                     padding: 24,
                   }}
                 >
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748B', marginBottom: 18, fontWeight: 800 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textFaint, marginBottom: 18, fontWeight: 800 }}>
                     Команда
                   </div>
 
@@ -2863,23 +2896,23 @@ function App() {
                           <button
                             key={person.id || person.user?.id || person.user?.email}
                             onClick={() => setSelectedPerson({ ...person, source: 'team' })}
-                            style={{ width: '100%', textAlign: 'left', cursor: 'pointer', border: '1px solid rgba(30,41,59,.8)', borderRadius: 14, background: 'rgba(2,6,23,.4)', padding: 12, display: 'flex', gap: 11, alignItems: 'flex-start' }}
+                            style={{ width: '100%', textAlign: 'left', cursor: 'pointer', border: `1px solid ${T.borderSoft}`, borderRadius: 14, background: T.cardBg, boxShadow: T.shadowSm, padding: 12, display: 'flex', gap: 11, alignItems: 'flex-start' }}
                           >
                             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #1D4ED8, #0EA5E9)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: '#fff', flexShrink: 0 }}>
                               {initials}
                             </div>
                             <div style={{ minWidth: 0, flex: 1 }}>
-                              <div style={{ color: '#E2E8F0', fontSize: 13, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
-                              {role && <div style={{ color: '#64748B', fontSize: 11, marginTop: 2 }}>{role}</div>}
+                              <div style={{ color: T.text, fontSize: 13, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+                              {role && <div style={{ color: T.textFaint, fontSize: 11, marginTop: 2 }}>{role}</div>}
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 7 }}>
                                 {person.user?.email && (
                                   <a href={`mailto:${person.user.email}`} onClick={(e) => e.stopPropagation()}
-                                    style={{ borderRadius: 6, padding: '3px 7px', fontSize: 11, border: '1px solid rgba(59,130,246,.3)', background: 'rgba(59,130,246,.1)', color: '#93C5FD', textDecoration: 'none' }}>
+                                    style={{ borderRadius: 6, padding: '3px 7px', fontSize: 11, border: '1px solid rgba(59,130,246,.3)', background: (lightMode ? '#E4EDFD' : 'rgba(59,130,246,.1)'), color: (lightMode ? '#1D4ED8' : '#93C5FD'), textDecoration: 'none' }}>
                                     {person.user.email}
                                   </a>
                                 )}
                                 {person.user?.telegram && (
-                                  <span style={{ borderRadius: 6, padding: '3px 7px', fontSize: 11, border: '1px solid rgba(34,197,94,.3)', background: 'rgba(34,197,94,.1)', color: '#86EFAC' }}>
+                                  <span style={{ borderRadius: 6, padding: '3px 7px', fontSize: 11, border: '1px solid rgba(34,197,94,.3)', background: (lightMode ? '#DCFCE7' : 'rgba(34,197,94,.1)'), color: (lightMode ? '#15803D' : '#86EFAC') }}>
                                     {person.user.telegram}
                                   </span>
                                 )}
@@ -2890,7 +2923,7 @@ function App() {
                       })}
                     </div>
                   ) : (
-                    <div style={{ color: '#475569', fontSize: 13, fontStyle: 'italic' }}>Команда ще не додана.</div>
+                    <div style={{ color: T.textMuted, fontSize: 13, fontStyle: 'italic' }}>Команда ще не додана.</div>
                   )}
                 </section>
               </div>
@@ -2900,11 +2933,11 @@ function App() {
                   style={{
                     borderRadius: 22,
                     border: '1px solid rgba(30,41,59,.9)',
-                    background: 'rgba(15,23,42,.62)',
+                    background: T.cardBg, boxShadow: T.shadowSm,
                     padding: 24,
                   }}
                 >
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748B', marginBottom: 18, fontWeight: 800 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textFaint, marginBottom: 18, fontWeight: 800 }}>
                     Контакти відділу
                   </div>
 
@@ -2915,14 +2948,14 @@ function App() {
                       { label: 'Чат', value: selectedDepartment.contacts?.chat_link || selectedDepartment.chat_link, href: (v) => v },
                     ].map(({ label, value, href }) => (
                       <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 12, color: '#475569', flexShrink: 0 }}>{label}</span>
+                        <span style={{ fontSize: 12, color: T.textMuted, flexShrink: 0 }}>{label}</span>
                         {value ? (
                           <a href={href(value)} target="_blank" rel="noreferrer"
-                            style={{ fontSize: 13, color: '#93C5FD', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+                            style={{ fontSize: 13, color: (lightMode ? '#1D4ED8' : '#93C5FD'), textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
                             {value}
                           </a>
                         ) : (
-                          <span style={{ fontSize: 13, color: '#334155', fontStyle: 'italic' }}>Не вказано</span>
+                          <span style={{ fontSize: 13, color: T.textFaint, fontStyle: 'italic' }}>Не вказано</span>
                         )}
                       </div>
                     ))}
@@ -2933,34 +2966,34 @@ function App() {
                   style={{
                     borderRadius: 22,
                     border: '1px solid rgba(30,41,59,.9)',
-                    background: 'rgba(15,23,42,.62)',
+                    background: T.cardBg, boxShadow: T.shadowSm,
                     padding: 24,
                   }}
                 >
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748B', marginBottom: 18, fontWeight: 800 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textFaint, marginBottom: 18, fontWeight: 800 }}>
                     Бренди та ГЕО
                   </div>
 
                   <div style={{ display: 'grid', gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: 11, color: '#475569', marginBottom: 7, fontWeight: 600 }}>Бренди</div>
+                      <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 7, fontWeight: 600 }}>Бренди</div>
                       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
                         {selectedDepartment.brand_names?.length > 0 ? selectedDepartment.brand_names.map((brand) => (
-                          <span key={brand} style={{ borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(59,130,246,.3)', background: 'rgba(59,130,246,.1)', color: '#93C5FD' }}>
+                          <span key={brand} style={{ borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(59,130,246,.3)', background: (lightMode ? '#E4EDFD' : 'rgba(59,130,246,.1)'), color: (lightMode ? '#1D4ED8' : '#93C5FD') }}>
                             {brand}
                           </span>
-                        )) : <span style={{ color: '#334155', fontSize: 13, fontStyle: 'italic' }}>Не вказано</span>}
+                        )) : <span style={{ color: T.textFaint, fontSize: 13, fontStyle: 'italic' }}>Не вказано</span>}
                       </div>
                     </div>
 
                     <div>
-                      <div style={{ fontSize: 11, color: '#475569', marginBottom: 7, fontWeight: 600 }}>ГЕО</div>
+                      <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 7, fontWeight: 600 }}>ГЕО</div>
                       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
                         {selectedDepartment.geo_names?.length > 0 ? selectedDepartment.geo_names.map((geo) => (
-                          <span key={geo} style={{ borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(34,197,94,.3)', background: 'rgba(34,197,94,.1)', color: '#86EFAC' }}>
+                          <span key={geo} style={{ borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(34,197,94,.3)', background: (lightMode ? '#DCFCE7' : 'rgba(34,197,94,.1)'), color: (lightMode ? '#15803D' : '#86EFAC') }}>
                             {geo}
                           </span>
-                        )) : <span style={{ color: '#334155', fontSize: 13, fontStyle: 'italic' }}>Не вказано</span>}
+                        )) : <span style={{ color: T.textFaint, fontSize: 13, fontStyle: 'italic' }}>Не вказано</span>}
                       </div>
                     </div>
                   </div>
@@ -2970,26 +3003,26 @@ function App() {
                   style={{
                     borderRadius: 22,
                     border: '1px solid rgba(30,41,59,.9)',
-                    background: 'rgba(15,23,42,.62)',
+                    background: T.cardBg, boxShadow: T.shadowSm,
                     padding: 24,
                   }}
                 >
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748B', marginBottom: 18, fontWeight: 800 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textFaint, marginBottom: 18, fontWeight: 800 }}>
                     Зв'язки
                   </div>
 
                   <button
                     onClick={() => setIsRelationsPanelOpen(true)}
-                    style={{ width: '100%', textAlign: 'left', border: '1px solid rgba(59,130,246,.22)', background: 'rgba(2,6,23,.38)', borderRadius: 16, padding: 16, cursor: 'pointer' }}
+                    style={{ width: '100%', textAlign: 'left', border: '1px solid rgba(59,130,246,.22)', background: T.cardBg, boxShadow: T.shadowSm, borderRadius: 16, padding: 16, cursor: 'pointer' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                      <span style={{ fontSize: 12, color: '#64748B' }}>Всього зв'язків</span>
-                      <span style={{ fontSize: 26, fontWeight: 900, color: '#60A5FA' }}>{selectedRelations.length}</span>
+                      <span style={{ fontSize: 12, color: T.textFaint }}>Всього зв'язків</span>
+                      <span style={{ fontSize: 26, fontWeight: 900, color: (lightMode ? '#2563EB' : '#60A5FA') }}>{selectedRelations.length}</span>
                     </div>
                     {[
                       { key: 'high',   label: 'Сильні',  color: '#22C55E', dots: 3 },
                       { key: 'medium', label: 'Середні', color: '#3B82F6', dots: 2 },
-                      { key: 'low',    label: 'Слабкі',  color: '#64748B', dots: 1 },
+                      { key: 'low',    label: 'Слабкі',  color: T.textFaint, dots: 1 },
                     ].map(({ key, label, color, dots }) => {
                       const cnt = selectedRelations.filter((r) => String(r.strength || 'medium').toLowerCase() === key).length
                       if (!cnt) return null
@@ -3005,7 +3038,7 @@ function App() {
                         </div>
                       )
                     })}
-                    <div style={{ marginTop: 10, color: '#475569', fontSize: 11 }}>
+                    <div style={{ marginTop: 10, color: T.textMuted, fontSize: 11 }}>
                       Натисніть для деталей →
                     </div>
                   </button>
@@ -3015,22 +3048,22 @@ function App() {
                   style={{
                     borderRadius: 22,
                     border: '1px solid rgba(30,41,59,.9)',
-                    background: 'rgba(15,23,42,.62)',
+                    background: T.cardBg, boxShadow: T.shadowSm,
                     padding: 24,
                   }}
                 >
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748B', marginBottom: 18, fontWeight: 800 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textFaint, marginBottom: 18, fontWeight: 800 }}>
                     Теги
                   </div>
 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                     {selectedDepartment.tags?.map((tag) => (
-                      <span key={tag.id || tag.name} style={{ borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(148,163,184,.2)', background: 'rgba(148,163,184,.08)', color: '#94A3B8' }}>
+                      <span key={tag.id || tag.name} style={{ borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(148,163,184,.2)', background: 'rgba(148,163,184,.08)', color: T.textMuted }}>
                         {tag.name}
                       </span>
                     ))}
                     {(!selectedDepartment.tags || selectedDepartment.tags.length === 0) && (
-                      <span style={{ color: '#334155', fontSize: 13, fontStyle: 'italic' }}>Теги ще не додані.</span>
+                      <span style={{ color: T.textFaint, fontSize: 13, fontStyle: 'italic' }}>Теги ще не додані.</span>
                     )}
                   </div>
                 </section>
@@ -3069,8 +3102,8 @@ function App() {
                 width: 'min(780px, 100%)',
                 minHeight: 440,
                 borderRadius: 28,
-                border: '1px solid rgba(148,163,184,.18)',
-                background: 'rgba(15,23,42,.72)',
+                border: `1px solid ${T.border}`,
+                background: T.cardBg, boxShadow: T.shadowSm,
                 boxShadow: '0 30px 120px rgba(0,0,0,.42)',
                 padding: 28,
                 position: 'relative',
@@ -3080,7 +3113,7 @@ function App() {
               <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(148,163,184,.18) 1px, transparent 1px)', backgroundSize: '24px 24px', opacity: .35 }} />
 
               <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'center', paddingTop: 150 }}>
-                <div style={{ borderRadius: 999, border: '4px solid #FFFFFF', background: '#020617', color: '#F8FAFC', padding: '13px 24px', fontWeight: 900, boxShadow: '0 0 38px rgba(59,130,246,.35)' }}>
+                <div style={{ borderRadius: 999, border: '4px solid #FFFFFF', background: T.inputBg, color: T.text, padding: '13px 24px', fontWeight: 900, boxShadow: '0 0 38px rgba(59,130,246,.35)' }}>
                   {selectedDepartment.name}
                 </div>
               </div>
@@ -3110,8 +3143,8 @@ function App() {
                       zIndex: 3,
                       borderRadius: 999,
                       border: group.criticalCount > 0 ? '3px solid #F97316' : `3px solid ${group.color}`,
-                      background: '#020617',
-                      color: '#F8FAFC',
+                      background: T.inputBg,
+                      color: T.text,
                       padding: '10px 16px',
                       fontSize: 13,
                       fontWeight: 900,
@@ -3122,7 +3155,7 @@ function App() {
                   >
                     {group.name}
                     {group.relationCount > 1 && (
-                      <span style={{ marginLeft: 8, color: '#93C5FD', fontSize: 11 }}>
+                      <span style={{ marginLeft: 8, color: (lightMode ? '#1D4ED8' : '#93C5FD'), fontSize: 11 }}>
                         ×{group.relationCount}
                       </span>
                     )}
@@ -3161,7 +3194,7 @@ function App() {
               width: '100%',
               height: '100%',
               boxSizing: 'border-box',
-              background: '#06101F',
+              background: T.panelBg,
               borderLeft: '1px solid rgba(148,163,184,.18)',
               boxShadow: '-30px 0 120px rgba(0,0,0,.5)',
               padding: 24,
@@ -3170,20 +3203,20 @@ function App() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 22 }}>
               <div>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.16em', color: '#64748B', marginBottom: 8 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.16em', color: T.textFaint, marginBottom: 8 }}>
                   Зв'язки відділу
                 </div>
                 <h3 style={{ margin: 0, fontSize: 24, lineHeight: '30px', fontWeight: 900 }}>
                   {selectedDepartment.name}
                 </h3>
-                <div style={{ marginTop: 8, color: '#94A3B8', fontSize: 13 }}>
+                <div style={{ marginTop: 8, color: T.textMuted, fontSize: 13 }}>
                   {groupedRelationCards.length} пов'язаних відділів · {selectedRelationCards.length} зв'язків
                 </div>
               </div>
 
               <button
                 onClick={() => setIsRelationsPanelOpen(false)}
-                style={{ borderRadius: 14, border: '1px solid rgba(148,163,184,.18)', background: 'rgba(15,23,42,.8)', color: '#CBD5E1', padding: '9px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                style={{ borderRadius: 14, border: `1px solid ${T.border}`, background: T.cardBg, boxShadow: T.shadowSm, color: T.text, padding: '9px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
               >
                 Закрити
               </button>
@@ -3198,8 +3231,8 @@ function App() {
                     key={group.id}
                     style={{
                       borderRadius: 20,
-                      border: '1px solid rgba(148,163,184,.18)',
-                      background: 'rgba(15,23,42,.62)',
+                      border: `1px solid ${T.border}`,
+                      background: T.cardBg, boxShadow: T.shadowSm,
                       overflow: 'hidden',
                     }}
                   >
@@ -3215,8 +3248,8 @@ function App() {
                       style={{
                         width: '100%',
                         border: 'none',
-                        background: 'rgba(2,6,23,.28)',
-                        color: '#F8FAFC',
+                        background: T.cardBg, boxShadow: T.shadowSm,
+                        color: T.text,
                         padding: 16,
                         cursor: 'pointer',
                         display: 'flex',
@@ -3232,7 +3265,7 @@ function App() {
                           <span style={{ fontSize: 15, fontWeight: 900 }}>{group.name}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                          <span style={{ color: '#64748B', fontSize: 12 }}>{group.relationCount} {group.relationCount === 1 ? 'зв\'язок' : 'зв\'язків'}</span>
+                          <span style={{ color: T.textFaint, fontSize: 12 }}>{group.relationCount} {group.relationCount === 1 ? 'зв\'язок' : 'зв\'язків'}</span>
                           <div style={{ display: 'flex', gap: 2.5 }}>
                             {[1,2,3].map((i) => {
                               const dots = group.highestPriority === 'high' ? 3 : group.highestPriority === 'medium' ? 2 : 1
@@ -3245,7 +3278,7 @@ function App() {
                           )}
                         </div>
                       </div>
-                      <span style={{ color: '#93C5FD', fontSize: 18, fontWeight: 900 }}>
+                      <span style={{ color: (lightMode ? '#1D4ED8' : '#93C5FD'), fontSize: 18, fontWeight: 900 }}>
                         {isExpanded ? '−' : '+'}
                       </span>
                     </button>
@@ -3273,7 +3306,7 @@ function App() {
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <div style={{ width: 3, height: 20, borderRadius: 2, background: sc.color, flexShrink: 0 }} />
-                                  <span style={{ color: '#E2E8F0', fontSize: 13, fontWeight: 800 }}>
+                                  <span style={{ color: T.text, fontSize: 13, fontWeight: 800 }}>
                                     {relation.relation_type_name || relation.relation_type || 'Зв\'язок'}
                                   </span>
                                 </div>
@@ -3283,27 +3316,27 @@ function App() {
                               </div>
                               {/* Tags row */}
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                                <span style={{ borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700, border: '1px solid rgba(148,163,184,.15)', background: 'rgba(15,23,42,.6)', color: '#94A3B8' }}>
+                                <span style={{ borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700, border: '1px solid rgba(148,163,184,.15)', background: T.cardBg, boxShadow: T.shadowSm, color: T.textMuted }}>
                                   {relation.directionLabel}
                                 </span>
                                 {relation.is_critical && (
-                                  <span style={{ borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700, border: '1px solid rgba(249,115,22,.35)', background: 'rgba(249,115,22,.1)', color: '#FDBA74' }}>
+                                  <span style={{ borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700, border: '1px solid rgba(249,115,22,.35)', background: (lightMode ? '#FEE8D8' : 'rgba(249,115,22,.1)'), color: (lightMode ? '#C2410C' : '#FDBA74') }}>
                                     ⚡ Критична
                                   </span>
                                 )}
                                 {relation.is_bidirectional && !relation.is_critical && (
-                                  <span style={{ borderRadius: 6, padding: '3px 8px', fontSize: 11, color: '#64748B', border: '1px solid rgba(148,163,184,.12)', background: 'rgba(15,23,42,.5)' }}>
+                                  <span style={{ borderRadius: 6, padding: '3px 8px', fontSize: 11, color: T.textFaint, border: '1px solid rgba(148,163,184,.12)', background: T.cardBg }}>
                                     ↔
                                   </span>
                                 )}
                               </div>
                               {/* Description */}
                               {(relation.short_description || relation.full_description) ? (
-                                <div style={{ color: '#94A3B8', fontSize: 12, lineHeight: '18px' }}>
+                                <div style={{ color: T.textMuted, fontSize: 12, lineHeight: '18px' }}>
                                   {relation.short_description || relation.full_description}
                                 </div>
                               ) : (
-                                <div style={{ color: '#334155', fontSize: 12, fontStyle: 'italic' }}>Опис не заповнено</div>
+                                <div style={{ color: T.textFaint, fontSize: 12, fontStyle: 'italic' }}>Опис не заповнено</div>
                               )}
                             </button>
                           )
@@ -3313,7 +3346,7 @@ function App() {
                   </section>
                 )
               }) : (
-                <div style={{ color: '#475569', fontSize: 13, border: '1px dashed rgba(148,163,184,.15)', borderRadius: 16, padding: 18, textAlign: 'center', fontStyle: 'italic' }}>
+                <div style={{ color: T.textMuted, fontSize: 13, border: '1px dashed rgba(148,163,184,.15)', borderRadius: 16, padding: 18, textAlign: 'center', fontStyle: 'italic' }}>
                   Зв'язки для відділу ще не додані.
                 </div>
               )}
@@ -3342,7 +3375,7 @@ function App() {
             style={{
               width: 'min(560px, 100%)',
               borderRadius: 26,
-              border: '1px solid rgba(148,163,184,.18)',
+              border: `1px solid ${T.border}`,
               background: 'linear-gradient(180deg, #0F172A 0%, #020617 100%)',
               boxShadow: '0 30px 120px rgba(0,0,0,.58)',
               overflow: 'hidden',
@@ -3350,25 +3383,25 @@ function App() {
           >
             <div style={{ padding: 26, borderBottom: '1px solid rgba(30,41,59,.9)', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
               <div>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.16em', color: '#64748B', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.16em', color: T.textFaint, marginBottom: 10 }}>
                   {selectedPerson.source === 'leader' ? 'Картка лідера / TL' : 'Картка людини'}
                 </div>
-                <h3 style={{ margin: 0, fontSize: 28, lineHeight: '34px', fontWeight: 900, color: '#F8FAFC' }}>
+                <h3 style={{ margin: 0, fontSize: 28, lineHeight: '34px', fontWeight: 900, color: T.text }}>
                   {selectedPerson.user?.name || selectedPerson.user?.full_name || selectedPerson.user?.username || selectedPerson.user?.email || 'Без імені'}
                 </h3>
-                <div style={{ marginTop: 10, color: '#94A3B8', fontSize: 14 }}>
-                  {selectedPerson.position || selectedPerson.lead_type || selectedPerson.user?.position || selectedPerson.user?.role || <span style={{ color: '#334155', fontStyle: 'italic' }}>Роль не вказана</span>}
+                <div style={{ marginTop: 10, color: T.textMuted, fontSize: 14 }}>
+                  {selectedPerson.position || selectedPerson.lead_type || selectedPerson.user?.position || selectedPerson.user?.role || <span style={{ color: T.textFaint, fontStyle: 'italic' }}>Роль не вказана</span>}
                 </div>
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
                   {(selectedPerson.user?.department_name || selectedPerson.department_name) && (
-                    <span style={{ borderRadius: 999, padding: '7px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(168,85,247,.35)', background: 'rgba(168,85,247,.12)', color: '#D8B4FE' }}>
+                    <span style={{ borderRadius: 999, padding: '7px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(168,85,247,.35)', background: 'rgba(168,85,247,.12)', color: (lightMode ? '#7E22CE' : '#D8B4FE') }}>
                       Відділ: {selectedPerson.user?.department_name || selectedPerson.department_name}
                     </span>
                   )}
 
                   {(selectedPerson.user?.manager_name || selectedPerson.manager_name) && (
-                    <span style={{ borderRadius: 999, padding: '7px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(251,146,60,.35)', background: 'rgba(251,146,60,.12)', color: '#FDBA74' }}>
+                    <span style={{ borderRadius: 999, padding: '7px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(251,146,60,.35)', background: 'rgba(251,146,60,.12)', color: (lightMode ? '#C2410C' : '#FDBA74') }}>
                       Керівник: {selectedPerson.user?.manager_name || selectedPerson.manager_name}
                     </span>
                   )}
@@ -3380,9 +3413,9 @@ function App() {
                 style={{
                   height: 38,
                   borderRadius: 14,
-                  border: '1px solid rgba(148,163,184,.18)',
-                  background: 'rgba(15,23,42,.8)',
-                  color: '#CBD5E1',
+                  border: `1px solid ${T.border}`,
+                  background: T.cardBg, boxShadow: T.shadowSm,
+                  color: T.text,
                   padding: '8px 12px',
                   fontSize: 13,
                   fontWeight: 700,
@@ -3394,8 +3427,8 @@ function App() {
             </div>
 
             <div style={{ padding: 26, display: 'grid', gap: 18 }}>
-              <section style={{ borderRadius: 20, border: '1px solid rgba(30,41,59,.9)', background: 'rgba(15,23,42,.62)', padding: 18 }}>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748B', marginBottom: 14, fontWeight: 800 }}>
+              <section style={{ borderRadius: 20, border: '1px solid rgba(30,41,59,.9)', background: T.cardBg, boxShadow: T.shadowSm, padding: 18 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textFaint, marginBottom: 14, fontWeight: 800 }}>
                   Контакти
                 </div>
 
@@ -3406,22 +3439,22 @@ function App() {
                     { label: 'Телефон', value: selectedPerson.user?.phone || selectedPerson.user?.reddy, href: (v) => `tel:${v}` },
                   ].map(({ label, value, href }) => (
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 12, color: '#475569', flexShrink: 0 }}>{label}</span>
+                      <span style={{ fontSize: 12, color: T.textMuted, flexShrink: 0 }}>{label}</span>
                       {value ? (
                         <a href={href(value)} target="_blank" rel="noreferrer"
-                          style={{ fontSize: 13, color: '#93C5FD', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 260 }}>
+                          style={{ fontSize: 13, color: (lightMode ? '#1D4ED8' : '#93C5FD'), textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 260 }}>
                           {value}
                         </a>
                       ) : (
-                        <span style={{ fontSize: 13, color: '#334155', fontStyle: 'italic' }}>Не вказано</span>
+                        <span style={{ fontSize: 13, color: T.textFaint, fontStyle: 'italic' }}>Не вказано</span>
                       )}
                     </div>
                   ))}
                 </div>
               </section>
 
-              <section style={{ borderRadius: 20, border: '1px solid rgba(30,41,59,.9)', background: 'rgba(15,23,42,.62)', padding: 18 }}>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748B', marginBottom: 14, fontWeight: 800 }}>
+              <section style={{ borderRadius: 20, border: '1px solid rgba(30,41,59,.9)', background: T.cardBg, boxShadow: T.shadowSm, padding: 18 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textFaint, marginBottom: 14, fontWeight: 800 }}>
                   Зона відповідальності
                 </div>
 
@@ -3440,11 +3473,11 @@ function App() {
                   return ra ? (
                     <div
                       className="rich-text"
-                      style={{ color: '#CBD5E1', fontSize: 14, lineHeight: '24px' }}
+                      style={{ color: T.text, fontSize: 14, lineHeight: '24px' }}
                       dangerouslySetInnerHTML={{ __html: ra }}
                     />
                   ) : (
-                    <div style={{ color: '#475569', fontSize: 14, fontStyle: 'italic' }}>Функціональні обов'язки поки не заповнені.</div>
+                    <div style={{ color: T.textMuted, fontSize: 14, fontStyle: 'italic' }}>Функціональні обов'язки поки не заповнені.</div>
                   )
                 })()}
               </section>

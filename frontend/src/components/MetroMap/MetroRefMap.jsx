@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import { MiniMap, TransformComponent, TransformWrapper, useControls } from 'react-zoom-pan-pinch'
+import { themed } from '../../theme'
 
-const BG = '#0B1524'
+const BG_DARK = '#0B1524'
+const BG_LIGHT = '#FAFBFD'
 const W = 1900
 const H = 1300
 const CX = W / 2
@@ -88,9 +90,9 @@ function withWaypoints(base, wps) {
   return res
 }
 
-function ZoomControls() {
+function ZoomControls({ light }) {
   const { zoomIn, zoomOut, resetTransform } = useControls()
-  const btn = { width: 34, height: 34, borderRadius: 9, border: '1px solid rgba(148,163,184,0.22)', background: 'rgba(15,23,42,0.92)', color: '#E2E8F0', fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', lineHeight: 1 }
+  const btn = { width: 34, height: 34, borderRadius: 9, border: light ? '1px solid rgba(15,23,42,0.14)' : '1px solid rgba(148,163,184,0.22)', background: light ? 'rgba(255,255,255,0.95)' : 'rgba(15,23,42,0.92)', color: light ? '#0F172A' : '#E2E8F0', fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', lineHeight: 1 }
   return (
     <div style={{ position: 'absolute', left: 16, bottom: 16, zIndex: 30, display: 'flex', flexDirection: 'column', gap: 6 }}>
       <button style={btn} onClick={() => zoomIn()} title="Наблизити">+</button>
@@ -100,8 +102,19 @@ function ZoomControls() {
   )
 }
 
-export default function MetroRefMap({ payload, selectedDepartmentId, setSelectedDepartmentId, setHoveredDepartmentId, layoutMode = 'geo', constructorMode = false, constructorTool = 'move', geometry = {}, onSaveGeometry, onSavePosition, onResetPosition, selectedConstructorElement, onSelectConstructorElement }) {
+export default function MetroRefMap({ payload, light = false, selectedDepartmentId, setSelectedDepartmentId, setHoveredDepartmentId, layoutMode = 'geo', constructorMode = false, constructorTool = 'move', geometry = {}, onSaveGeometry, onSavePosition, onResetPosition, selectedConstructorElement, onSelectConstructorElement }) {
   const [hoveredId, setHoveredId] = useState(null)
+  // theme-aware colours (light/dark)
+  const BG = light ? BG_LIGHT : BG_DARK
+  const STATION_FILL = light ? '#FFFFFF' : '#FFFFFF'
+  const HUB_STROKE = light ? '#0F172A' : '#FFFFFF'
+  const LBL_ACTIVE = light ? '#0F172A' : '#FFFFFF'
+  const LBL_ROOT = light ? '#0F172A' : '#F1F5F9'
+  const LBL_SUB = light ? '#334155' : '#CBD5E1'
+  const LC = (c) => themed(c, light)            // line/station colour for this theme
+  const CRIT = light ? '#C2410C' : '#F97316'
+  const REL_FAINT = light ? 0.32 : 0.14
+  const REL_HOT = light ? 0.85 : 0.6
   const [overrides, setOverrides] = useState({}) // live drag positions {id:{x,y}}
   const [expandedId, setExpandedId] = useState(null) // ring station whose sub-departments are popped out
   const [hoveredRelId, setHoveredRelId] = useState(null) // relation hovered directly
@@ -421,7 +434,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
           childrenOf(root.id).filter((k) => !hidden.has(String(k.id))).forEach((kid, ki) => {
             const bx = x + perp[0] * BRANCH * (ki + 1)
             const by = y + perp[1] * BRANCH * (ki + 1)
-            pos.set(String(kid.id), { x: bx, y: by, color: g.color, station: kid, dx: perp[0], dy: perp[1], isRoot: false, branchFrom: { x, y } })
+            pos.set(String(kid.id), { x: bx, y: by, color: LC(g.color), station: kid, dx: perp[0], dy: perp[1], isRoot: false, branchFrom: { x, y } })
           })
         }
 
@@ -431,7 +444,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
           roots.forEach((s, i) => {
             const x = CX
             const y = CY + sgn * (150 + i * HSTEP)
-            pos.set(String(s.id), { x, y, color: g.color, station: s, dx: 1, dy: 0, isRoot: true, lineId: g.id })
+            pos.set(String(s.id), { x, y, color: LC(g.color), station: s, dx: 1, dy: 0, isRoot: true, lineId: g.id })
             pts.push({ x, y })
             spineIds.push(String(s.id))
             placeChildren(s, x, y, [1, 0])
@@ -461,7 +474,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
             chunk.forEach((s, i) => {
               const x = attachX + dir[0] * (40 + i * SSTEP)
               const y = CY + dir[1] * (40 + i * SSTEP)
-              pos.set(String(s.id), { x, y, color: g.color, station: s, dx: dir[0], dy: dir[1], isRoot: true, lineId: g.id })
+              pos.set(String(s.id), { x, y, color: LC(g.color), station: s, dx: dir[0], dy: dir[1], isRoot: true, lineId: g.id })
               feederIds.push(String(s.id))
               // children fan OUTWARD (away from centre) + outward horizontally, so they never overlap other branches
               const away = goUp ? -1 : 1
@@ -480,7 +493,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
           roots.forEach((s, i) => {
             const x = CX + d[0] * (150 + i * HSTEP)
             const y = CY + d[1] * (150 + i * HSTEP)
-            pos.set(String(s.id), { x, y, color: g.color, station: s, dx: d[0], dy: d[1], isRoot: true, lineId: g.id })
+            pos.set(String(s.id), { x, y, color: LC(g.color), station: s, dx: d[0], dy: d[1], isRoot: true, lineId: g.id })
             pts.push({ x, y })
             spineIds.push(String(s.id))
             placeChildren(s, x, y, [-d[1], d[0]])
@@ -488,7 +501,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
           if (pts.length) nameAt = { x: pts[pts.length - 1].x, y: pts[pts.length - 1].y - 22 }
         }
 
-        rayPaths.push({ id: g.id, name: g.name, color: g.color, points: pts, trunk, feeders, spineIds, nameAt, nameAnchor: makeNameAnchor(spineIds, feeders) })
+        rayPaths.push({ id: g.id, name: g.name, color: LC(g.color), points: pts, trunk, feeders, spineIds, nameAt, nameAnchor: makeNameAnchor(spineIds, feeders) })
       })
 
       return { positions: pos, rays: rayPaths }
@@ -505,7 +518,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       childrenOf(root.id).filter((k) => !hidden.has(String(k.id))).forEach((kid, ki) => {
         const bx = x + perp[0] * GEO_BRANCH * (ki + 1)
         const by = y + perp[1] * GEO_BRANCH * (ki + 1)
-        pos.set(String(kid.id), { x: bx, y: by, color, station: kid, dx: perp[0], dy: perp[1], isRoot: false, branchFrom: { x, y }, faint })
+        pos.set(String(kid.id), { x: bx, y: by, color: LC(color), station: kid, dx: perp[0], dy: perp[1], isRoot: false, branchFrom: { x, y }, faint })
       })
     }
 
@@ -571,7 +584,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
           let x, y, dx, dy
           if (i < LEFT_N) { x = CX - (START + i * STEP); y = CY; dx = 0; dy = -1 } // left arm
           else { x = cornerX; y = CY - STEP * (i - LEFT_N + 1); dx = -1; dy = 0 }  // up arm
-          pos.set(String(s.id), { x, y, color: g.color, station: s, dx, dy, isRoot: true, lineId: g.id })
+          pos.set(String(s.id), { x, y, color: LC(g.color), station: s, dx, dy, isRoot: true, lineId: g.id })
           pts.push({ x, y })
           // sub-departments as a faint branch (full opacity on hover/select), same as service
           placeGeoChildren(s, x, y, [dx, dy], g.color, true)
@@ -605,7 +618,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
         }
         roots.forEach((s, i) => {
           const sl = slots[i] || slots[slots.length - 1] || { x: CX, y: CY, dx: 0, dy: -1 }
-          pos.set(String(s.id), { x: sl.x, y: sl.y, color: g.color, station: s, dx: sl.dx, dy: sl.dy, isRoot: true, lineId: g.id })
+          pos.set(String(s.id), { x: sl.x, y: sl.y, color: LC(g.color), station: s, dx: sl.dx, dy: sl.dy, isRoot: true, lineId: g.id })
           pts.push({ x: sl.x, y: sl.y })
           // sub-departments as a faint branch radiating outward (full opacity on hover/select)
           placeGeoChildren(s, sl.x, sl.y, [sl.dx, sl.dy], g.color, true)
@@ -618,7 +631,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
         let y = CY + DIRS8[di][1] * START
         roots.forEach((s, i) => {
           const dirVec = DIRS8[di]
-          pos.set(String(s.id), { x, y, color: g.color, station: s, dx: dirVec[0], dy: dirVec[1], isRoot: true, lineId: g.id })
+          pos.set(String(s.id), { x, y, color: LC(g.color), station: s, dx: dirVec[0], dy: dirVec[1], isRoot: true, lineId: g.id })
           pts.push({ x, y })
           placeGeoChildren(s, x, y, [-dirVec[1], dirVec[0]], g.color)
           const isLast = i === count - 1
@@ -640,11 +653,11 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
       const lastP = pts[pts.length - 1]
       // Regional GEO spokes AND Baing get an angled label near HQ (which line goes where); rings keep the end-anchored label.
       const nameAngled = isBaing || !g.isService
-      rayPaths.push({ id: g.id, name: g.name, color: g.color, points: pts, trunk: [], feeders: [], spineIds, ring: isRing, nameAngled, nameAt: lastP ? { x: lastP.x, y: lastP.y - 22 } : null, nameAnchor: makeNameAnchor(spineIds, null) })
+      rayPaths.push({ id: g.id, name: g.name, color: LC(g.color), points: pts, trunk: [], feeders: [], spineIds, ring: isRing, nameAngled, nameAt: lastP ? { x: lastP.x, y: lastP.y - 22 } : null, nameAnchor: makeNameAnchor(spineIds, null) })
     })
 
     return { positions: pos, rays: rayPaths }
-  }, [lineGroups, layoutMode, childrenByParent, geometry, expandedId])
+  }, [lineGroups, layoutMode, childrenByParent, geometry, expandedId, light])
 
   const connectedIds = useMemo(() => {
     const set = new Set()
@@ -681,7 +694,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
             </defs>
 
             <rect width={W} height={H} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null); setExpandedId(null); setSelectedDepartmentId(null) }} />
-            <pattern id="mr-dots" x="0" y="0" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill="rgba(148,163,184,0.06)" /></pattern>
+            <pattern id="mr-dots" x="0" y="0" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill={light ? "rgba(15,23,42,0.07)" : "rgba(148,163,184,0.06)"} /></pattern>
             <rect width={W} height={H} fill="url(#mr-dots)" style={{ pointerEvents: 'none' }} />
 
             {/* Ray tracks */}
@@ -781,7 +794,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
               const pe = (pid != null && eff(pid)) || p.branchFrom
               // faint branches (service sub-departments) dim to 50% until the parent or child is active
               const kActive = String(activeId) === cid || (activeId != null && String(pid) === String(activeId))
-              const op = p.faint ? (kActive ? 0.9 : 0.5) : 0.5
+              const op = p.faint ? (kActive ? 0.9 : (light ? 0.66 : 0.5)) : (light ? 0.65 : 0.5)
               return <line key={`b-${cid}`} x1={pe.x} y1={pe.y} x2={ce.x} y2={ce.y} stroke={p.color} strokeWidth={3} opacity={op} strokeLinecap="round" />
             })}
 
@@ -793,8 +806,8 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
               const tp = effPos(String(rel.target), tp0.x, tp0.y)
               const isCrit = Boolean(rel.is_critical)
               const isBi = Boolean(rel.is_bidirectional || rel.direction === 'bidirectional')
-              const srcColor = isCrit ? '#F97316' : (sp0.color || '#94A3B8')
-              const tgtColor = isCrit ? '#F97316' : (tp0.color || '#94A3B8')
+              const srcColor = isCrit ? CRIT : (sp0.color || '#94A3B8')
+              const tgtColor = isCrit ? CRIT : (tp0.color || '#94A3B8')
               const dx = tp.x - sp.x, dy = tp.y - sp.y; const dist = Math.sqrt(dx * dx + dy * dy) || 1
               const off = 26 + (ri % 4) * 16
               const qx = (sp.x + tp.x) / 2 + (-dy / dist) * off, qy = (sp.y + tp.y) / 2 + (dx / dist) * off
@@ -832,18 +845,18 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
                   {/* wide invisible hit area so a faint line is easy to hover */}
                   <path d={d} fill="none" stroke="transparent" strokeWidth={16} />
                   <path d={d} fill="none"
-                    stroke={isCrit ? '#F97316' : srcColor} strokeWidth={hot ? (isCrit ? 2.6 : 2.2) : 1.4}
-                    strokeLinecap="round" opacity={hot ? (isCrit ? 0.7 : 0.6) : 0.14} />
+                    stroke={isCrit ? CRIT : srcColor} strokeWidth={hot ? (isCrit ? 2.8 : 2.4) : (light ? 1.7 : 1.4)}
+                    strokeLinecap="round" opacity={hot ? REL_HOT : REL_FAINT} />
                   {arrows}
                 </g>
               )
             })}
 
             {/* Head Office hub */}
-            <circle cx={CX} cy={CY} r={34} fill="rgba(255,255,255,0.08)" />
-            <circle cx={CX} cy={CY} r={22} fill={BG} stroke="#FFFFFF" strokeWidth={4} />
-            <circle cx={CX} cy={CY} r={7} fill="#FFFFFF" />
-            <text x={CX} y={CY + 2} textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize={11} fontWeight={900} fontFamily="Inter, sans-serif" style={{ paintOrder: 'stroke', stroke: BG, strokeWidth: 3, pointerEvents: 'none' }}>HQ</text>
+            <circle cx={CX} cy={CY} r={34} fill={light ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.08)"} />
+            <circle cx={CX} cy={CY} r={22} fill={light ? "#FFFFFF" : BG} stroke={HUB_STROKE} strokeWidth={light ? 3.5 : 4} />
+            <circle cx={CX} cy={CY} r={7} fill={HUB_STROKE} />
+            <text x={CX} y={CY + 2} textAnchor="middle" dominantBaseline="middle" fill={light ? "#FFFFFF" : "#FFFFFF"} fontSize={11} fontWeight={900} fontFamily="Inter, sans-serif" style={{ paintOrder: 'stroke', stroke: light ? "#0F172A" : BG, strokeWidth: 3, pointerEvents: 'none' }}>HQ</text>
 
             {/* Branches (custom) */}
             {branches.map((b) => {
@@ -896,14 +909,14 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
               const isExpanded = expandable && String(expandedId) === id
               // faint sub-departments (service branches): 50% until this node or its parent is active
               const parentActive = posItem.faint && activeId != null && String(parentIdOf(station)) === String(activeId)
-              const faintOp = posItem.faint && !isAct && !parentActive ? 0.5 : 1
+              const faintOp = posItem.faint && !isAct && !parentActive ? (light ? 0.68 : 0.5) : 1
               const r = isAct ? 13 : (expandable ? 12 : (isRoot ? 11 : 7))
               const lx = x + (dx || 0) * 17
               const ly = y + (dy || 0) * 17 - (Math.abs(dy || 0) < 0.3 ? 15 : 0)
               const anchor = (dx || 0) > 0.3 ? 'start' : (dx || 0) < -0.3 ? 'end' : 'middle'
               return (
                 <g key={id}
-                  style={{ cursor: constructorMode ? 'grab' : 'pointer', opacity: isDim ? 0.16 : faintOp, transition: 'opacity 150ms' }}
+                  style={{ cursor: constructorMode ? 'grab' : 'pointer', opacity: isDim ? (light ? 0.3 : 0.16) : faintOp, transition: 'opacity 150ms' }}
                   onMouseEnter={() => onHover(id)} onMouseLeave={onLeave}
                   onPointerDown={(e) => onStationPointerDown(e, id)}
                   onClick={(e) => {
@@ -923,12 +936,15 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
                       onSaveGeometry({ ...geometry, positions: nextPos })
                     }
                   }}>
-                  {isAct && <circle cx={x} cy={y} r={r + 7} fill={nodeColor} opacity={0.3} filter="url(#mr-glow)" />}
+                  {isAct && <circle cx={x} cy={y} r={r + 7} fill={nodeColor} opacity={light ? 0.16 : 0.3} filter={light ? undefined : 'url(#mr-glow)'} />}
                   {refStyle ? (
                     <>
                       {/* expandable (has sub-departments): brighter outer ring as an affordance */}
                       {expandable && <circle cx={x} cy={y} r={r + 4} fill="none" stroke={nodeColor} strokeWidth={2} opacity={isExpanded ? 0.95 : 0.5} />}
-                      <circle cx={x} cy={y} r={r} fill="#FFFFFF" stroke={nodeColor} strokeWidth={isAct ? 5 : 4} />
+                      <>
+                      {light && isSel && <circle cx={x} cy={y} r={r + 5} fill="none" stroke={nodeColor} strokeWidth={2} opacity={0.45} />}
+                      <circle cx={x} cy={y} r={r} fill={STATION_FILL} stroke={nodeColor} strokeWidth={light ? (isSel ? 5.5 : isAct ? 5 : 3.5) : (isAct ? 5 : 4)} />
+                      </>
                       {/* sub-department count inside the station */}
                       {expandable && (
                         <text x={x} y={y + 0.5} textAnchor="middle" dominantBaseline="middle" fill={nodeColor} fontSize={11} fontWeight={900} fontFamily="Inter, sans-serif" style={{ pointerEvents: 'none' }}>
@@ -944,7 +960,7 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
                     </>
                   )}
                   <text x={lx} y={ly} textAnchor={anchor} dominantBaseline="middle"
-                    fill={isAct ? '#FFFFFF' : (isRoot ? '#F1F5F9' : '#CBD5E1')} fontSize={isRoot ? 12.5 : 11} fontWeight={isAct || isRoot ? 800 : 600} fontFamily="Inter, sans-serif"
+                    fill={isAct ? LBL_ACTIVE : (isRoot ? LBL_ROOT : LBL_SUB)} fontSize={isRoot ? 12.5 : 11} fontWeight={isAct || isRoot ? 800 : (light ? 700 : 600)} fontFamily="Inter, sans-serif"
                     style={{ paintOrder: 'stroke', stroke: BG, strokeWidth: 3.5, strokeLinejoin: 'round', pointerEvents: 'none' }}>
                     {station.name}
                   </text>
@@ -973,9 +989,9 @@ export default function MetroRefMap({ payload, selectedDepartmentId, setSelected
           </svg>
         </TransformComponent>
 
-        <ZoomControls />
+        <ZoomControls light={light} />
 
-        <div style={{ position: 'absolute', right: 16, bottom: 16, zIndex: 30, border: '1px solid rgba(148,163,184,0.22)', borderRadius: 10, overflow: 'hidden', background: 'rgba(13,27,42,0.9)', backdropFilter: 'blur(8px)' }}>
+        <div style={{ position: 'absolute', right: 16, bottom: 16, zIndex: 30, border: light ? '1px solid rgba(15,23,42,0.14)' : '1px solid rgba(148,163,184,0.22)', borderRadius: 10, overflow: 'hidden', background: light ? 'rgba(255,255,255,0.95)' : 'rgba(13,27,42,0.9)', backdropFilter: 'blur(8px)' }}>
           <MiniMap width={180} height={130} borderColor="rgba(96,165,250,0.8)">
             <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" style={{ display: 'block', background: BG }}>
               {rays.map((ray) => (

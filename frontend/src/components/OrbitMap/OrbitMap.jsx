@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { TransformComponent, TransformWrapper, useControls } from 'react-zoom-pan-pinch'
+import { themed } from '../../theme'
 
 const W = 1400
 const H = 1000
 const CX = W / 2
 const CY = H / 2
-const BG = '#0A1626'
+const BG_DARK = '#0A1626'
+const BG_LIGHT = '#FAFBFD'
 
 // Concentric orbits by type (variant A): service inner, Baing mid, regional outer.
 const RS = 165  // service ring radius
@@ -37,9 +39,9 @@ function geoOf(s) {
   return (Array.isArray(s.geo_names) && s.geo_names.length && s.geo_names[0]) || 'яяя'
 }
 
-function ZoomControls() {
+function ZoomControls({ light }) {
   const { zoomIn, zoomOut, resetTransform } = useControls()
-  const btn = { width: 34, height: 34, borderRadius: 9, border: '1px solid rgba(148,163,184,0.22)', background: 'rgba(15,23,42,0.92)', color: '#E2E8F0', fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', lineHeight: 1 }
+  const btn = { width: 34, height: 34, borderRadius: 9, border: light ? '1px solid rgba(15,23,42,0.14)' : '1px solid rgba(148,163,184,0.22)', background: light ? 'rgba(255,255,255,0.95)' : 'rgba(15,23,42,0.92)', color: light ? '#0F172A' : '#E2E8F0', fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', lineHeight: 1 }
   return (
     <div style={{ position: 'absolute', left: 16, bottom: 16, zIndex: 30, display: 'flex', flexDirection: 'column', gap: 6 }}>
       <button style={btn} onClick={() => zoomIn()} title="Наблизити">+</button>
@@ -49,8 +51,14 @@ function ZoomControls() {
   )
 }
 
-export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDepartmentId, setHoveredDepartmentId }) {
+export default function OrbitMap({ payload, light = false, selectedDepartmentId, setSelectedDepartmentId, setHoveredDepartmentId }) {
   const [hoveredId, setHoveredId] = useState(null)
+  const BG = light ? BG_LIGHT : BG_DARK
+  const LBL = light ? '#0F172A' : '#DCE4EE'
+  const LBL_ACTIVE = light ? '#0F172A' : '#FFFFFF'
+  const LC = (c) => themed(c, light)
+  const REL = light ? '#64748B' : C_REL
+  const CRIT = light ? '#C2410C' : C_CRIT
   const [hoveredChildId, setHoveredChildId] = useState(null)
   const [showSub, setShowSub] = useState(true)
   const [hiddenKinds, setHiddenKinds] = useState({}) // { service|baing|regional: true } => hidden
@@ -87,11 +95,11 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
         })
       })
     }
-    if (!hiddenKinds.service) place(service, RS, C_SERVICE, 'service')
-    if (!hiddenKinds.baing) place(baing, RB, C_BAING, 'baing')
-    if (!hiddenKinds.regional) place(regional, RR, C_REGIONAL, 'regional')
+    if (!hiddenKinds.service) place(service, RS, LC(C_SERVICE), 'service')
+    if (!hiddenKinds.baing) place(baing, RB, LC(C_BAING), 'baing')
+    if (!hiddenKinds.regional) place(regional, RR, LC(C_REGIONAL), 'regional')
     return { nodes: out, posMap: new Map(out.map((nd) => [nd.id, nd])) }
-  }, [payload, hiddenKinds])
+  }, [payload, hiddenKinds, light])
 
   const connectedIds = useMemo(() => {
     const set = new Set()
@@ -113,11 +121,11 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
   const onLeave = () => { setHoveredId(null); setHoveredDepartmentId?.(null) }
 
   const relStyle = (r, hot) => {
-    if (r.is_critical) return { stroke: C_CRIT, width: hot ? 2.4 : 1.6, dash: '', op: hot ? 0.85 : 0.5 }
+    if (r.is_critical) return { stroke: CRIT, width: hot ? 2.4 : 1.6, dash: '', op: hot ? 0.85 : 0.5 }
     const s = String(r.strength || '').toLowerCase()
-    if (s === 'high') return { stroke: C_REL, width: hot ? 2 : 1.4, dash: '', op: hot ? 0.7 : 0.4 }
-    if (s === 'medium' || s === 'middle') return { stroke: C_REL, width: hot ? 1.8 : 1.2, dash: '7 6', op: hot ? 0.6 : 0.3 }
-    return { stroke: C_REL, width: 1.1, dash: '2 6', op: hot ? 0.5 : 0.28 }
+    if (s === 'high') return { stroke: REL, width: hot ? 2.2 : (light ? 1.7 : 1.4), dash: '', op: hot ? (light ? 0.9 : 0.7) : (light ? 0.6 : 0.4) }
+    if (s === 'medium' || s === 'middle') return { stroke: REL, width: hot ? 1.9 : 1.3, dash: '7 6', op: hot ? (light ? 0.8 : 0.6) : (light ? 0.5 : 0.3) }
+    return { stroke: REL, width: 1.2, dash: '2 6', op: hot ? (light ? 0.7 : 0.5) : (light ? 0.45 : 0.28) }
   }
 
   return (
@@ -127,22 +135,23 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
             <defs>
               <filter id="o-glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="6" /></filter>
-              <radialGradient id="og-service" cx="42%" cy="38%" r="65%"><stop offset="0%" stopColor="#FDE68A" /><stop offset="100%" stopColor="#D97706" /></radialGradient>
-              <radialGradient id="og-regional" cx="42%" cy="38%" r="65%"><stop offset="0%" stopColor="#86EFAC" /><stop offset="100%" stopColor="#15803D" /></radialGradient>
-              <radialGradient id="og-baing" cx="42%" cy="38%" r="65%"><stop offset="0%" stopColor="#93C5FD" /><stop offset="100%" stopColor="#1D4ED8" /></radialGradient>
+              <radialGradient id="og-service" cx="42%" cy="38%" r="65%"><stop offset="0%" stopColor={light ? "#F5B301" : "#FDE68A"} /><stop offset="100%" stopColor={light ? "#92400E" : "#D97706"} /></radialGradient>
+              <radialGradient id="og-regional" cx="42%" cy="38%" r="65%"><stop offset="0%" stopColor={light ? "#22C55E" : "#86EFAC"} /><stop offset="100%" stopColor={light ? "#14532D" : "#15803D"} /></radialGradient>
+              <radialGradient id="og-baing" cx="42%" cy="38%" r="65%"><stop offset="0%" stopColor={light ? "#3B82F6" : "#93C5FD"} /><stop offset="100%" stopColor={light ? "#1E3A8A" : "#1D4ED8"} /></radialGradient>
             </defs>
 
             <rect width={W} height={H} fill={BG} onClick={() => setSelectedDepartmentId(null)} />
-            <pattern id="o-dots" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill="rgba(148,163,184,0.06)" /></pattern>
+            <pattern id="o-dots" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill={light ? "rgba(15,23,42,0.07)" : "rgba(148,163,184,0.06)"} /></pattern>
             <rect width={W} height={H} fill="url(#o-dots)" style={{ pointerEvents: 'none' }} />
 
             {/* orbit guide rings */}
-            {[[RS, C_SERVICE], [RB, C_BAING], [RR, C_REGIONAL]].map(([r, c]) => (
-              <circle key={r} cx={CX} cy={CY} r={r} fill="none" stroke={c} strokeWidth={1} opacity={0.12} strokeDasharray="3 7" />
+            {[[RS, LC(C_SERVICE)], [RB, LC(C_BAING)], [RR, LC(C_REGIONAL)]].map(([r, c]) => (
+              <circle key={r} cx={CX} cy={CY} r={r} fill="none" stroke={c} strokeWidth={1} opacity={light ? 0.28 : 0.12} strokeDasharray="3 7" />
             ))}
             {/* HQ core */}
-            <circle cx={CX} cy={CY} r={16} fill="rgba(255,255,255,0.06)" />
-            <circle cx={CX} cy={CY} r={7} fill="#FFFFFF" opacity={0.85} />
+            <circle cx={CX} cy={CY} r={18} fill={light ? "#FFFFFF" : "rgba(255,255,255,0.06)"} stroke={light ? "#0F172A" : "rgba(255,255,255,0.35)"} strokeWidth={light ? 2.5 : 1} />
+            <circle cx={CX} cy={CY} r={6} fill={light ? '#0F172A' : '#FFFFFF'} opacity={0.9} />
+            <text x={CX} y={CY + 34} textAnchor="middle" fill={light ? '#334155' : '#94A3B8'} fontSize={11} fontWeight={800} fontFamily="Inter, sans-serif" style={{ pointerEvents: 'none' }}>HQ</text>
 
             {/* connections */}
             {visibleRelations.map((r) => {
@@ -162,11 +171,11 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
               const nr = isAct ? NR + 3 : NR
               const rx = nr + 26, ry = nr + 15
               return (
-                <g key={nd.id} style={{ opacity: isDim ? 0.2 : (isAct ? 1 : 0.8), transition: 'opacity 150ms' }}>
+                <g key={nd.id} style={{ opacity: isDim ? (light ? 0.32 : 0.2) : (isAct ? 1 : 0.8), transition: 'opacity 150ms' }}>
                   {/* sub-departments as orbiting planets — clickable, name on hover */}
                   {showSub && nd.childList.length > 0 && (
                     <g>
-                      <ellipse cx={nd.x} cy={nd.y} rx={rx} ry={ry} fill="none" stroke={nd.color} strokeWidth={1} opacity={0.4} />
+                      <ellipse cx={nd.x} cy={nd.y} rx={rx} ry={ry} fill="none" stroke={nd.color} strokeWidth={light ? 1.3 : 1} opacity={light ? 0.6 : 0.4} />
                       {nd.childList.slice(0, 14).map((kid, k, arr) => {
                         const pa = (2 * Math.PI) * (k / arr.length) - Math.PI / 2
                         const px = nd.x + Math.cos(pa) * rx, py = nd.y + Math.sin(pa) * ry
@@ -178,7 +187,7 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
                             onMouseLeave={() => { setHoveredChildId(null); setHoveredDepartmentId?.(null) }}
                             onClick={(e) => { e.stopPropagation(); setSelectedDepartmentId(kid_id) }}>
                             <circle cx={px} cy={py} r={11} fill="transparent" />
-                            <circle cx={px} cy={py} r={kh ? 7 : 5} fill={nd.color} stroke={kh ? '#FFFFFF' : 'rgba(10,22,38,0.6)'} strokeWidth={kh ? 2 : 1} />
+                            <circle cx={px} cy={py} r={kh ? 7 : 5} fill={nd.color} stroke={kh ? (light ? '#0F172A' : '#FFFFFF') : (light ? 'rgba(255,255,255,0.9)' : 'rgba(10,22,38,0.6)')} strokeWidth={kh ? 2 : 1} />
                             {kh && (
                               <text x={px} y={py - 13} textAnchor="middle" fill="#FFFFFF" fontSize={11.5} fontWeight={800} fontFamily="Inter, sans-serif"
                                 style={{ paintOrder: 'stroke', stroke: BG, strokeWidth: 3.5, strokeLinejoin: 'round', pointerEvents: 'none' }}>{kid.name}</text>
@@ -193,15 +202,18 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
                     onMouseEnter={() => onHover(nd.id)} onMouseLeave={onLeave}
                     onClick={(e) => { e.stopPropagation(); setSelectedDepartmentId(nd.id) }}>
                   {/* glow halo */}
-                  <circle cx={nd.x} cy={nd.y} r={nr + 12} fill={nd.color} opacity={isAct ? 0.4 : 0.22} filter="url(#o-glow)" />
+                  <circle cx={nd.x} cy={nd.y} r={nr + 12} fill={nd.color} opacity={light ? (isAct ? 0.2 : 0.1) : (isAct ? 0.4 : 0.22)} filter={light ? undefined : "url(#o-glow)"} />
                   {/* orb body */}
-                  <circle cx={nd.x} cy={nd.y} r={nr} fill={`url(#og-${nd.kind})`} stroke={isSel ? '#FFFFFF' : nd.color} strokeWidth={isSel ? 3 : 1.5} />
+                  <>
+                    {light && isSel && <circle cx={nd.x} cy={nd.y} r={nr + 7} fill="none" stroke={nd.color} strokeWidth={2} opacity={0.5} />}
+                    <circle cx={nd.x} cy={nd.y} r={nr} fill={`url(#og-${nd.kind})`} stroke={isSel ? (light ? '#0F172A' : '#FFFFFF') : nd.color} strokeWidth={isSel ? 3 : 1.5} />
+                    </>
                   {/* sub-dept count */}
                   {nd.children > 0 && (
-                    <text x={nd.x} y={nd.y + 0.5} textAnchor="middle" dominantBaseline="middle" fill="#0A1626" fontSize={13} fontWeight={900} fontFamily="Inter, sans-serif" style={{ pointerEvents: 'none' }}>{nd.children}</text>
+                    <text x={nd.x} y={nd.y + 0.5} textAnchor="middle" dominantBaseline="middle" fill={light ? '#0F172A' : '#0A1626'} fontSize={13} fontWeight={900} fontFamily="Inter, sans-serif" style={{ pointerEvents: 'none' }}>{nd.children}</text>
                   )}
                   {/* label */}
-                  <text x={nd.x} y={nd.y + nr + 22} textAnchor="middle" fill={isAct ? '#FFFFFF' : '#DCE4EE'} fontSize={13} fontWeight={isAct ? 800 : 700} fontFamily="Inter, sans-serif"
+                  <text x={nd.x} y={nd.y + nr + 22} textAnchor="middle" fill={isAct ? LBL_ACTIVE : LBL} fontSize={13} fontWeight={isAct ? 800 : (light ? 700 : 700)} fontFamily="Inter, sans-serif"
                     style={{ paintOrder: 'stroke', stroke: BG, strokeWidth: 3.5, strokeLinejoin: 'round', pointerEvents: 'none' }}>
                     {nd.name}
                   </text>
@@ -212,27 +224,27 @@ export default function OrbitMap({ payload, selectedDepartmentId, setSelectedDep
           </svg>
         </TransformComponent>
 
-        <ZoomControls />
+        <ZoomControls light={light} />
 
         {/* legend / clickable type filter */}
-        <div style={{ position: 'absolute', left: 16, top: 16, zIndex: 30, display: 'flex', gap: 4, alignItems: 'center', background: 'rgba(15,23,42,0.82)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '5px 6px', backdropFilter: 'blur(8px)', fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 700 }}>
+        <div style={{ position: 'absolute', left: 16, top: 16, zIndex: 30, display: 'flex', gap: 4, alignItems: 'center', background: light ? 'rgba(255,255,255,0.92)' : 'rgba(15,23,42,0.82)', border: light ? '1px solid rgba(15,23,42,0.12)' : '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '5px 6px', backdropFilter: 'blur(8px)', fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 700 }}>
           {[['Сервісні', C_SERVICE, 'service'], ['Баинг', C_BAING, 'baing'], ['Регіональні', C_REGIONAL, 'regional']].map(([t, c, kind]) => {
             const on = !hiddenKinds[kind]
             return (
               <button key={t} onClick={() => setHiddenKinds((h) => ({ ...h, [kind]: !h[kind] }))} title={on ? 'Приховати тип' : 'Показати тип'}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '5px 9px', borderRadius: 7, opacity: on ? 1 : 0.45, transition: 'opacity 120ms' }}>
-                <span style={{ width: 11, height: 11, borderRadius: '50%', background: on ? c : '#475569', boxShadow: on ? `0 0 8px ${c}` : 'none', flexShrink: 0 }} />
-                <span style={{ color: on ? '#CBD5E1' : '#64748B' }}>{t}</span>
+                <span style={{ width: 11, height: 11, borderRadius: '50%', background: on ? LC(c) : '#94A3B8', boxShadow: on && !light ? `0 0 8px ${c}` : 'none', flexShrink: 0 }} />
+                <span style={{ color: on ? (light ? '#0F172A' : '#CBD5E1') : (light ? '#94A3B8' : '#64748B') }}>{t}</span>
               </button>
             )
           })}
         </div>
 
         {/* display toggles */}
-        <div style={{ position: 'absolute', left: '50%', bottom: 16, transform: 'translateX(-50%)', zIndex: 30, display: 'flex', gap: 6, background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 9, padding: 4, backdropFilter: 'blur(8px)' }}>
+        <div style={{ position: 'absolute', left: '50%', bottom: 16, transform: 'translateX(-50%)', zIndex: 30, display: 'flex', gap: 6, background: light ? 'rgba(255,255,255,0.94)' : 'rgba(15,23,42,0.9)', border: light ? '1px solid rgba(15,23,42,0.12)' : '1px solid rgba(148,163,184,0.2)', borderRadius: 9, padding: 4, backdropFilter: 'blur(8px)' }}>
           {[['Підвідділи', showSub, setShowSub], ["Зв'язки", showRel, setShowRel]].map(([label, val, set]) => (
             <button key={label} onClick={() => set((v) => !v)}
-              style={{ padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', borderRadius: 7, background: val ? 'rgba(59,130,246,0.22)' : 'transparent', color: val ? '#93C5FD' : '#64748B' }}>
+              style={{ padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', borderRadius: 7, background: val ? (light ? '#E3EDFD' : 'rgba(59,130,246,0.22)') : 'transparent', color: val ? (light ? '#1D4ED8' : '#93C5FD') : (light ? '#94A3B8' : '#64748B') }}>
               {label}
             </button>
           ))}
