@@ -1,12 +1,25 @@
 from flask import Flask
+from flask_compress import Compress
 
 from app.config import Config
 from app.extensions import db, login_manager, migrate
 
 
+compress = Compress()
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    # gzip/brotli responses — the JS bundle and API payloads compress ~3-4x
+    app.config.setdefault("COMPRESS_MIMETYPES", [
+        "text/html", "text/css", "text/javascript", "application/javascript",
+        "application/json", "image/svg+xml",
+    ])
+    app.config.setdefault("COMPRESS_LEVEL", 6)
+    app.config.setdefault("COMPRESS_MIN_SIZE", 1024)
+    compress.init_app(app)
 
     db.init_app(app)
     migrate.init_app(app, db)

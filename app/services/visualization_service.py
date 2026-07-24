@@ -1,4 +1,12 @@
-from app.models.department import Department
+from sqlalchemy.orm import joinedload, selectinload
+
+from app.models.department import (
+    Department,
+    DepartmentBrand,
+    DepartmentGeo,
+    DepartmentLead,
+    DepartmentTag,
+)
 from app.models.relation import DepartmentRelation
 from app.models.settings import Brand, DepartmentType, Geo
 from app.utils import visibility as visibility_utils
@@ -876,7 +884,21 @@ def build_visualization_map_payload(brand_id=None, geo_id=None, public_view=Fals
             Department.geo_links.any(geo_id=geo_id)
         )
 
-    departments = departments_query.all()
+    # Eager-load everything the serializer touches; otherwise each department fires
+    # separate queries for brands/geos/tags/leads (N+1 -> ~230 queries).
+    departments = departments_query.options(
+        joinedload(Department.department_type),
+        selectinload(Department.brand_links).joinedload(DepartmentBrand.brand),
+        selectinload(Department.geo_links).joinedload(DepartmentGeo.geo),
+        selectinload(Department.tag_links).joinedload(DepartmentTag.tag),
+        selectinload(Department.lead_links).joinedload(DepartmentLead.person),
+        selectinload(Department.people),
+        selectinload(Department.child_departments),
+        # leaders are inherited by walking up the parents, so preload that chain too
+        joinedload(Department.parent_department)
+        .selectinload(Department.lead_links)
+        .joinedload(DepartmentLead.person),
+    ).all()
     if viewer_access:
         departments = [
             department
