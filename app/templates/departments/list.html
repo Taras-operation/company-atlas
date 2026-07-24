@@ -9,9 +9,34 @@
 </div>
 
 <div class="card">
-  <form method="get" class="filters">
-    <input type="text" name="search" placeholder="Пошук..." value="{{ request.args.get('search', '') }}">
+  <form method="get" class="filters" id="deptFilters">
+    <input type="text" name="search" placeholder="Пошук за назвою..." value="{{ request.args.get('search', '') }}">
+
+    <select name="type_id" onchange="this.form.submit()">
+      <option value="">Усі типи</option>
+      {% for item in department_types %}
+        <option value="{{ item.id }}" {% if request.args.get('type_id')|int == item.id %}selected{% endif %}>{{ item.name }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="brand_id" onchange="this.form.submit()">
+      <option value="">Усі бренди</option>
+      {% for item in brands %}
+        <option value="{{ item.id }}" {% if request.args.get('brand_id')|int == item.id %}selected{% endif %}>{{ item.name }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="geo_id" onchange="this.form.submit()">
+      <option value="">Усі GEO</option>
+      {% for item in geos %}
+        <option value="{{ item.id }}" {% if request.args.get('geo_id')|int == item.id %}selected{% endif %}>{{ item.name }}</option>
+      {% endfor %}
+    </select>
+
     <button class="btn btn-primary" type="submit">Знайти</button>
+    {% if request.args.get('search') or request.args.get('type_id') or request.args.get('brand_id') or request.args.get('geo_id') %}
+      <a class="btn btn-secondary" href="{{ url_for('departments.list_departments') }}">Скинути</a>
+    {% endif %}
   </form>
 </div>
 

@@ -127,9 +127,22 @@
 </div>
 
 <div class="field full">
-  <label>GEO / міста / ринки</label>
+  <label>Бренди</label>
+  {% set selected_person_brand_ids = person.brand_links|map(attribute='brand_id')|list if person else [] %}
+  <select name="person_brand_ids" id="person_brand_ids" class="js-multi-select" multiple data-placeholder="Оберіть бренди" data-select-all>
+    {% for item in brands %}
+      <option value="{{ item.id }}" {% if item.id in selected_person_brand_ids %}selected{% endif %}>
+        {{ item.name }}
+      </option>
+    {% endfor %}
+  </select>
+  <span class="muted">Бренди, з якими працює людина. «Обрати всі» — якщо працює з усіма.</span>
+</div>
+
+<div class="field full">
+  <label>GEO / країни / ринки</label>
   {% set selected_geo_location_ids = person.geo_location_links|map(attribute='geo_location_id')|list if person else [] %}
-  <select name="geo_location_ids" id="geo_location_ids" class="js-multi-select" multiple data-placeholder="Оберіть GEO locations">
+  <select name="geo_location_ids" id="geo_location_ids" class="js-multi-select" multiple data-placeholder="Оберіть GEO / країну" data-select-all>
     {% for item in geo_locations %}
       <option value="{{ item.id }}" {% if item.id in selected_geo_location_ids %}selected{% endif %}>
         {{ item.geo.name }} — {{ item.name }}{% if item.location_type %} ({{ item.location_type }}){% endif %}

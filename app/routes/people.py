@@ -19,6 +19,7 @@ from app.models import (
     Role,
     Tag,
     VisibilityChangeRequest,
+    PersonBrand,
     ViewerUser,
 )
 from app.utils.audit import log_action
@@ -151,10 +152,11 @@ def _apply_visibility_payload(person, payload):
             setattr(person, field, value)
 
 
-def _sync_person_links(person, role_ids, geo_location_ids, tag_ids):
+def _sync_person_links(person, role_ids, geo_location_ids, tag_ids, brand_ids=()):
     PersonRole.query.filter_by(person_id=person.id).delete()
     PersonGeoLocation.query.filter_by(person_id=person.id).delete()
     PersonTag.query.filter_by(person_id=person.id).delete()
+    PersonBrand.query.filter_by(person_id=person.id).delete()
 
     for role_id in role_ids:
         db.session.add(PersonRole(person_id=person.id, role_id=role_id))
@@ -164,6 +166,9 @@ def _sync_person_links(person, role_ids, geo_location_ids, tag_ids):
 
     for tag_id in tag_ids:
         db.session.add(PersonTag(person_id=person.id, tag_id=tag_id))
+
+    for brand_id in brand_ids:
+        db.session.add(PersonBrand(person_id=person.id, brand_id=brand_id))
 
 
 def _sync_visibility_scope_links(person, brand_ids, geo_ids, department_ids):
@@ -245,6 +250,26 @@ def _update_viewer_user_for_person(person):
 
     if person.viewer_user:
         person.viewer_user.is_active_user = request.form.get("viewer_is_active") == "on"
+
+        # Login can be changed; it must stay unique across viewer accounts.
+        new_username = request.form.get("viewer_username_edit", "").strip()
+        if new_username and new_username != person.viewer_user.username:
+            taken = ViewerUser.query.filter(
+                ViewerUser.username == new_username,
+                ViewerUser.id != person.viewer_user.id,
+            ).first()
+            if taken:
+                flash("Такий логін уже зайнятий — логін не змінено", "danger")
+            else:
+                old_username = person.viewer_user.username
+                person.viewer_user.username = new_username
+                log_action(
+                    entity_type="viewer_user",
+                    entity_id=person.viewer_user.id,
+                    action="rename",
+                    old_data={"username": old_username},
+                    new_data={"username": new_username},
+                )
 
         new_password = request.form.get("new_viewer_password", "").strip()
         if new_password:
@@ -345,6 +370,7 @@ def create_person():
             request.form.getlist("role_ids", type=int),
             request.form.getlist("geo_location_ids", type=int),
             request.form.getlist("tag_ids", type=int),
+            request.form.getlist("person_brand_ids", type=int),
         )
 
         if _is_admin():
@@ -469,6 +495,7 @@ def edit_person(person_id):
             request.form.getlist("role_ids", type=int),
             request.form.getlist("geo_location_ids", type=int),
             request.form.getlist("tag_ids", type=int),
+            request.form.getlist("person_brand_ids", type=int),
         )
 
         _sync_department_lead_flag(person, request.form.get("is_department_lead") == "on")

@@ -9,22 +9,28 @@
 
 <div class="card">
   <form method="get" class="filters">
-    <select name="status">
+    <select name="department_id" onchange="this.form.submit()">
+      <option value="">Усі команди</option>
+      {% for item in departments %}
+        <option value="{{ item.id }}" {% if request.args.get('department_id')|int == item.id %}selected{% endif %}>{{ item.name }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="status" onchange="this.form.submit()">
       <option value="">Всі статуси</option>
       <option value="active"  {% if request.args.get('status') == 'active'  %}selected{% endif %}>Активний</option>
       <option value="draft"   {% if request.args.get('status') == 'draft'   %}selected{% endif %}>Чернетка</option>
       <option value="paused"  {% if request.args.get('status') == 'paused'  %}selected{% endif %}>Пауза</option>
     </select>
 
-    <select name="strength">
+    <select name="strength" onchange="this.form.submit()">
       <option value="">Вся сила</option>
       <option value="high"   {% if request.args.get('strength') == 'high'   %}selected{% endif %}>Сильний</option>
       <option value="medium" {% if request.args.get('strength') == 'medium' %}selected{% endif %}>Середній</option>
       <option value="low"    {% if request.args.get('strength') == 'low'    %}selected{% endif %}>Слабкий</option>
     </select>
 
-    <button class="btn btn-primary" type="submit">Фільтр</button>
-    {% if request.args.get('status') or request.args.get('strength') %}
+    {% if request.args.get('status') or request.args.get('strength') or request.args.get('department_id') %}
       <a href="{{ url_for('relations.list_relations') }}" class="btn btn-secondary">Скинути</a>
     {% endif %}
   </form>

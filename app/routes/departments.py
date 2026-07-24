@@ -92,6 +92,27 @@ def list_departments():
     if search:
         query = query.filter(Department.name.ilike(f"%{search}%"))
 
+    # Filters: type / brand / GEO
+    type_id = request.args.get("type_id", type=int)
+    if type_id:
+        query = query.filter(Department.department_type_id == type_id)
+
+    brand_id = request.args.get("brand_id", type=int)
+    if brand_id:
+        query = query.filter(
+            Department.id.in_(
+                db.session.query(DepartmentBrand.department_id).filter(DepartmentBrand.brand_id == brand_id)
+            )
+        )
+
+    geo_id = request.args.get("geo_id", type=int)
+    if geo_id:
+        query = query.filter(
+            Department.id.in_(
+                db.session.query(DepartmentGeo.department_id).filter(DepartmentGeo.geo_id == geo_id)
+            )
+        )
+
     page = request.args.get("page", 1, type=int)
     pagination = query.order_by(Department.name.asc()).paginate(page=page, per_page=25, error_out=False)
     total_brands = Brand.query.count()
@@ -102,6 +123,9 @@ def list_departments():
         pagination=pagination,
         total_brands=total_brands,
         total_geos=total_geos,
+        department_types=DepartmentType.query.order_by(DepartmentType.name).all(),
+        brands=Brand.query.order_by(Brand.name).all(),
+        geos=Geo.query.order_by(Geo.name).all(),
     )
 
 

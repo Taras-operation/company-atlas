@@ -156,6 +156,17 @@
     {% endif %}
   </div>
 
+  <div class="card">
+    <h2>Бренди</h2>
+    <ul>
+      {% for item in person.brand_links %}
+        <li>{{ item.brand.name }}</li>
+      {% else %}
+        <li class="muted">Не вказано</li>
+      {% endfor %}
+    </ul>
+  </div>
+
   <div class="card full-width">
     <h2>Зона відповідальності</h2>
     <div class="rich-content">

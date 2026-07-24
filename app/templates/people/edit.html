@@ -19,10 +19,6 @@
       {% if person.viewer_user %}
 
         <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:16px;">
-          <div style="background:#f3f4f6; padding:10px 14px; border-radius:12px;">
-            <strong>Логін:</strong>
-            {{ person.viewer_user.username }}
-          </div>
 
           {% if person.viewer_user.is_active_user %}
             <div style="background:#dcfce7; color:#166534; padding:10px 14px; border-radius:12px; font-weight:700;">
@@ -43,6 +39,15 @@
         </div>
 
         <div class="grid-2">
+          <div class="field">
+            <label>Логін для візуалізації</label>
+            <input type="text"
+                   name="viewer_username_edit"
+                   value="{{ person.viewer_user.username }}"
+                   placeholder="Логін для входу у візуалізацію">
+            <span class="muted">Змінюючи логін, попередь користувача — вхід за старим більше не працюватиме.</span>
+          </div>
+
           <div class="field">
             <label>Новий пароль для візуалізації</label>
             <input type="text"

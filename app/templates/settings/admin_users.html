@@ -36,6 +36,11 @@
                   {{ "Деактивувати" if item.is_active_user else "Активувати" }}
                 </button>
               </form>
+
+              <form method="post" action="{{ url_for('settings.delete_admin_user', user_id=item.id) }}" style="display:inline;"
+                    onsubmit="return confirm('Видалити користувача «{{ item.username }}»? Дію не можна скасувати.');">
+                <button type="submit" class="btn btn-danger">Видалити</button>
+              </form>
             {% endif %}
           </td>
         </tr>

@@ -3,6 +3,7 @@ from .department import Department, DepartmentBrand, DepartmentGeo, DepartmentLe
 from .visibility import Role, PersonRole, VisibilityChangeRequest
 from .person import (
     Person,
+    PersonBrand,
     PersonGeoLocation,
     PersonTag,
     PersonVisibilityBrand,
@@ -30,6 +31,7 @@ __all__ = [
     "Role",
     "PersonRole",
     "Person",
+    "PersonBrand",
     "PersonGeoLocation",
     "PersonTag",
     "PersonVisibilityBrand",

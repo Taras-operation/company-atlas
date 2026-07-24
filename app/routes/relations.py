@@ -83,9 +83,28 @@ def list_relations():
     if strength_filter in ("low", "medium", "high"):
         query = query.filter(DepartmentRelation.strength == strength_filter)
 
+    # Filter by department/team (matches either side of the relation)
+    department_id = request.args.get("department_id", type=int)
+    if department_id:
+        query = query.filter(
+            or_(
+                DepartmentRelation.department_from_id == department_id,
+                DepartmentRelation.department_to_id == department_id,
+            )
+        )
+
+    dept_query = Department.query.filter_by(is_archived=False)
+    if accessible_ids is not None:
+        dept_query = dept_query.filter(Department.id.in_(accessible_ids))
+
     page = request.args.get("page", 1, type=int)
     pagination = query.order_by(DepartmentRelation.created_at.desc()).paginate(page=page, per_page=25, error_out=False)
-    return render_template("relations/list.html", items=pagination.items, pagination=pagination)
+    return render_template(
+        "relations/list.html",
+        items=pagination.items,
+        pagination=pagination,
+        departments=dept_query.order_by(Department.name).all(),
+    )
 
 
 @relations_bp.route("/create", methods=["GET", "POST"])

@@ -521,6 +521,32 @@ def reset_admin_user_password(user_id):
     return redirect(url_for("settings.edit_admin_user", user_id=user.id))
 
 
+@settings_bp.route("/admin-users/<int:user_id>/delete", methods=["POST"])
+def delete_admin_user(user_id):
+    user = AdminUser.query.get_or_404(user_id)
+
+    if user.id == current_user.id:
+        flash("Не можна видалити самого себе", "danger")
+        return redirect(url_for("settings.admin_users"))
+
+    if user.admin_role == "super_admin" and AdminUser.query.filter_by(admin_role="super_admin").count() <= 1:
+        flash("Не можна видалити останнього super_admin", "danger")
+        return redirect(url_for("settings.admin_users"))
+
+    log_action(
+        entity_type="admin_user",
+        entity_id=user.id,
+        action="delete",
+        old_data={"username": user.username, "admin_role": user.admin_role},
+    )
+
+    db.session.delete(user)
+    db.session.commit()
+
+    flash("Користувача видалено", "success")
+    return redirect(url_for("settings.admin_users"))
+
+
 @settings_bp.route("/admin-users/<int:user_id>/toggle-active", methods=["POST"])
 def toggle_admin_user_active(user_id):
     user = AdminUser.query.get_or_404(user_id)

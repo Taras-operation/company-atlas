@@ -89,6 +89,7 @@ class Person(db.Model):
 
     role_links = db.relationship("PersonRole", back_populates="person", cascade="all, delete-orphan")
     geo_location_links = db.relationship("PersonGeoLocation", back_populates="person", cascade="all, delete-orphan")
+    brand_links = db.relationship("PersonBrand", back_populates="person", cascade="all, delete-orphan")
     tag_links = db.relationship("PersonTag", back_populates="person", cascade="all, delete-orphan")
     lead_departments = db.relationship("DepartmentLead", back_populates="person", cascade="all, delete-orphan")
 
@@ -149,6 +150,22 @@ class PersonGeoLocation(db.Model):
     geo_location = db.relationship("GeoLocation", back_populates="person_links")
 
     __table_args__ = (db.UniqueConstraint("person_id", "geo_location_id", name="uq_person_geo_location"),)
+
+
+class PersonBrand(db.Model):
+    """Brands a person actually works with (not a visibility setting)."""
+
+    __tablename__ = "person_brands"
+
+    id = db.Column(db.Integer, primary_key=True)
+    person_id = db.Column(db.Integer, db.ForeignKey("people.id", ondelete="CASCADE"), nullable=False)
+    brand_id = db.Column(db.Integer, db.ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    person = db.relationship("Person", back_populates="brand_links")
+    brand = db.relationship("Brand")
+
+    __table_args__ = (db.UniqueConstraint("person_id", "brand_id", name="uq_person_brand"),)
 
 
 class PersonTag(db.Model):
