@@ -361,11 +361,15 @@ def edit_department_type(item_id):
     item = DepartmentType.query.get_or_404(item_id)
     name = request.form.get("name", "").strip()
     description = request.form.get("description", "").strip()
+    color = request.form.get("color", "").strip()
+    color_mode = request.form.get("color_mode", "single").strip()
     if not name:
         flash("Назва обов'язкова", "danger")
     else:
         item.name = name
         item.description = description or None
+        item.color = color or None
+        item.color_mode = color_mode if color_mode in ("single", "multi") else "single"
         db.session.commit()
         flash("Тип відділу оновлено", "success")
     return redirect(url_for("settings.department_types"))
