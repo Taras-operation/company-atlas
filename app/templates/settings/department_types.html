@@ -9,6 +9,20 @@
   <h3 style="margin-top:0">Редагувати: {{ edit_item.name }}</h3>
   <form method="post" action="{{ url_for('settings.edit_department_type', item_id=edit_item.id) }}" class="form-grid">
     <div class="field"><label>Назва</label><input type="text" name="name" value="{{ edit_item.name }}" required></div>
+    <div class="field">
+      <label>Режим кольору</label>
+      <select name="color_mode">
+        <option value="single" {% if edit_item.color_mode != 'multi' %}selected{% endif %}>Один колір (вся лінія)</option>
+        <option value="multi" {% if edit_item.color_mode == 'multi' %}selected{% endif %}>Мультиколір (кожна група — свій)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Колір</label>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <input type="color" name="color" value="{{ edit_item.color or '#3B82F6' }}" style="width:56px; height:40px; padding:2px;">
+        <span class="muted">Основний колір типу. У режимі «мультиколір» — базовий, решта підбираються автоматично.</span>
+      </div>
+    </div>
     <div class="field full"><label>Опис</label><textarea name="description" rows="2">{{ edit_item.description or '' }}</textarea></div>
     <div class="actions full">
       <button class="btn btn-primary" type="submit">Зберегти</button>
@@ -20,6 +34,17 @@
 <div class="card">
   <form method="post" class="form-grid">
     <div class="field"><label>Назва</label><input type="text" name="name" required></div>
+    <div class="field">
+      <label>Режим кольору</label>
+      <select name="color_mode">
+        <option value="single">Один колір (вся лінія)</option>
+        <option value="multi">Мультиколір (кожна група — свій)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Колір</label>
+      <input type="color" name="color" value="#3B82F6" style="width:56px; height:40px; padding:2px;">
+    </div>
     <div class="field full"><label>Опис</label><textarea name="description" rows="2"></textarea></div>
     <div class="actions"><button class="btn btn-primary" type="submit">Додати</button></div>
   </form>
@@ -28,11 +53,15 @@
 
 <div class="card">
   <table class="table">
-    <thead><tr><th>Назва</th><th>Опис</th><th>Відділів</th><th></th></tr></thead>
+    <thead><tr><th>Назва</th><th>Колір</th><th>Опис</th><th>Відділів</th><th></th></tr></thead>
     <tbody>
       {% for item in items %}
       <tr>
         <td><strong>{{ item.name }}</strong></td>
+        <td>
+          <span style="display:inline-block; width:16px; height:16px; border-radius:4px; vertical-align:middle; border:1px solid rgba(0,0,0,.15); background: {{ item.color or '#94A3B8' }};"></span>
+          <span class="muted" style="margin-left:6px;">{{ 'мульти' if item.color_mode == 'multi' else 'один' }}</span>
+        </td>
         <td>{{ item.description or "—" }}</td>
         <td>{{ item.departments|length }}</td>
         <td class="actions">
@@ -44,7 +73,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4">Поки пусто</td></tr>
+      <tr><td colspan="5">Поки пусто</td></tr>
       {% endfor %}
     </tbody>
   </table>

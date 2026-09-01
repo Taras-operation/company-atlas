@@ -77,6 +77,8 @@ def department_types():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         description = request.form.get("description", "").strip()
+        color = request.form.get("color", "").strip()
+        color_mode = request.form.get("color_mode", "single").strip()
 
         if not name:
             flash("Назва типу відділу обов'язкова", "danger")
@@ -87,7 +89,7 @@ def department_types():
             flash("Такий тип відділу вже існує", "danger")
             return redirect(url_for("settings.department_types"))
 
-        item = DepartmentType(name=name, description=description or None)
+        item = DepartmentType(name=name, description=description or None, color=color or None, color_mode=color_mode if color_mode in ('single', 'multi') else 'single')
         db.session.add(item)
         db.session.commit()
 
@@ -127,6 +129,7 @@ def geos():
         item = Geo(
             name=name,
             code=code or None,
+            color=request.form.get("color", "").strip() or None,
             description=description or None,
         )
         db.session.add(item)
@@ -147,6 +150,46 @@ def geos():
     edit_id = request.args.get("edit_id", type=int)
     edit_item = Geo.query.get(edit_id) if edit_id else None
     return render_template("settings/geos.html", items=items, edit_item=edit_item)
+
+
+@settings_bp.route("/geos/bulk", methods=["POST"])
+def bulk_geos():
+    import re
+
+    raw = request.form.get("names", "")
+    lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+
+    existing_names = {g.name.strip().lower() for g in Geo.query.all()}
+    existing_codes = {(g.code or "").strip().lower() for g in Geo.query.all() if g.code}
+    seen_names, seen_codes = set(), set()
+    added = skipped = 0
+
+    for line in lines:
+        # Accept "Name" or "Name, CODE" / "Name<TAB>CODE".
+        parts = re.split(r"[,;\t]", line, maxsplit=1)
+        name = parts[0].strip()
+        code = parts[1].strip() if len(parts) > 1 else None
+
+        if not name or name.lower() in existing_names or name.lower() in seen_names:
+            skipped += 1
+            continue
+
+        # Keep code unique; drop it on any conflict rather than failing the whole import.
+        if code:
+            ck = code.lower()
+            if ck in existing_codes or ck in seen_codes:
+                code = None
+            else:
+                seen_codes.add(ck)
+
+        seen_names.add(name.lower())
+        db.session.add(Geo(name=name, code=code or None))
+        added += 1
+
+    db.session.commit()
+
+    flash(f"Імпортовано GEO-груп: {added}. Пропущено (дублі): {skipped}.", "success")
+    return redirect(url_for("settings.geos"))
 
 
 @settings_bp.route("/geo-locations", methods=["GET", "POST"])
@@ -193,6 +236,47 @@ def geo_locations():
     items = GeoLocation.query.order_by(GeoLocation.name.asc()).all()
     geos = Geo.query.order_by(Geo.name.asc()).all()
     return render_template("settings/geo_locations.html", items=items, geos=geos)
+
+
+@settings_bp.route("/geo-locations/bulk", methods=["POST"])
+def bulk_geo_locations():
+    import re
+
+    geo_id = request.form.get("geo_id", type=int)
+    raw = request.form.get("names", "")
+
+    geo = Geo.query.get(geo_id) if geo_id else None
+    if not geo:
+        flash("Оберіть GEO-групу для імпорту", "danger")
+        return redirect(url_for("settings.geo_locations"))
+
+    # Split on newlines / commas / tabs / semicolons — handles a pasted Excel column or row.
+    names = [n.strip() for n in re.split(r"[\n\r,;\t]+", raw) if n.strip()]
+
+    existing = {gl.name.strip().lower() for gl in GeoLocation.query.filter_by(geo_id=geo_id).all()}
+    seen = set()
+    added = skipped = 0
+    for name in names:
+        key = name.lower()
+        if key in existing or key in seen:
+            skipped += 1
+            continue
+        seen.add(key)
+        db.session.add(GeoLocation(geo_id=geo_id, name=name, location_type="country"))
+        added += 1
+
+    db.session.commit()
+
+    log_action(
+        entity_type="geo_location",
+        entity_id=geo.id,
+        action="bulk_import",
+        new_data={"geo": geo.name, "added": added, "skipped": skipped},
+    )
+    db.session.commit()
+
+    flash(f"Імпортовано країн: {added}. Пропущено (дублі): {skipped}.", "success")
+    return redirect(url_for("settings.geo_locations"))
 
 
 @settings_bp.route("/tags", methods=["GET", "POST"])
@@ -243,12 +327,16 @@ def edit_brand(item_id):
     item = Brand.query.get_or_404(item_id)
     name = request.form.get("name", "").strip()
     description = request.form.get("description", "").strip()
+    color = request.form.get("color", "").strip()
+    color_mode = request.form.get("color_mode", "single").strip()
     if not name:
         flash("Назва обов'язкова", "danger")
     else:
         old_name = item.name
         item.name = name
         item.description = description or None
+        item.color = color or None
+        item.color_mode = color_mode if color_mode in ("single", "multi") else "single"
         db.session.commit()
         log_action(entity_type="brand", entity_id=item.id, action="update",
                    old_data={"name": old_name}, new_data={"name": item.name})
@@ -307,6 +395,7 @@ def edit_geo(item_id):
     else:
         item.name = name
         item.code = code or None
+        item.color = request.form.get("color", "").strip() or None
         db.session.commit()
         flash("GEO оновлено", "success")
     return redirect(url_for("settings.geos"))

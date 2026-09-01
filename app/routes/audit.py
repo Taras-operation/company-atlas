@@ -148,12 +148,32 @@ def _format_activity_item(log):
 @audit_bp.route("")
 @login_required
 def list_audit():
-    if current_user.admin_role not in ["super_admin", "admin"]:
-        flash("Немає доступу", "danger")
-        return redirect(url_for("dashboard.index"))
+    from app.models import AdminUser
+    from app.utils.access import get_accessible_department_ids, is_global_admin
+
+    query = AuditLog.query
+
+    if not is_global_admin():
+        # Scoped roles (head_tl / tl / operation) see the audit trail for their own
+        # department subtree: actions performed by any admin attached to that subtree
+        # (e.g. an Operation user working on the department) — so a TL/Head can see
+        # everything Operation does in their department.
+        accessible = get_accessible_department_ids()
+        if not accessible:
+            flash("Немає доступу", "danger")
+            return redirect(url_for("dashboard.index"))
+
+        actor_ids = {
+            row.id
+            for row in AdminUser.query
+            .filter(AdminUser.department_id.in_(accessible))
+            .all()
+        }
+        actor_ids.add(current_user.id)
+        query = query.filter(AuditLog.user_id.in_(actor_ids))
 
     items = (
-        AuditLog.query
+        query
         .order_by(AuditLog.created_at.desc())
         .limit(200)
         .all()

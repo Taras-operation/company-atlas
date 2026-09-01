@@ -63,7 +63,56 @@ export default function OrbitMap({ payload, light = false, selectedDepartmentId,
   const [showSub, setShowSub] = useState(true)
   const [hiddenKinds, setHiddenKinds] = useState({}) // { service|baing|regional: true } => hidden
   const [showRel, setShowRel] = useState(true)
+  const [expandedIds, setExpandedIds] = useState(() => new Set()) // sub-departments whose own orbit is open
   const activeId = hoveredId || selectedDepartmentId
+
+  // children of ANY department (all levels), so an opened sub-department can show its own orbit
+  const kidsByParent = useMemo(() => {
+    const m = new Map()
+    if (payload) {
+      payload.lines.forEach((line) => line.stations.forEach((s) => {
+        const pid = parentIdOf(s)
+        if (pid != null) { const k = String(pid); if (!m.has(k)) m.set(k, []); m.get(k).push(s) }
+      }))
+    }
+    return m
+  }, [payload])
+
+  // walk up to the ring-level root a node belongs to, so we can keep that whole orb lit
+  // while one of its (grand)children is active or expanded
+  const rootAncestorOf = useMemo(() => {
+    const parentOf = new Map()
+    if (payload) payload.lines.forEach((l) => l.stations.forEach((s) => {
+      const pid = parentIdOf(s)
+      parentOf.set(String(s.id), pid != null ? String(pid) : null)
+    }))
+    return (id) => {
+      let cur = String(id), guard = 0
+      while (parentOf.get(cur) && guard++ < 50) cur = parentOf.get(cur)
+      return cur
+    }
+  }, [payload])
+
+  const litRoots = useMemo(() => {
+    const s = new Set()
+    if (activeId) s.add(rootAncestorOf(activeId))
+    expandedIds.forEach((id) => s.add(rootAncestorOf(id)))
+    return s
+  }, [activeId, expandedIds, rootAncestorOf])
+
+  const toggleExpanded = (id) => setExpandedIds((cur) => {
+    const next = new Set(cur)
+    if (next.has(id)) {
+      // collapse this node and everything under it
+      const stack = [id]
+      while (stack.length) {
+        const c = stack.pop()
+        next.delete(c);
+        (kidsByParent.get(c) || []).forEach((k) => stack.push(String(k.id)))
+      }
+    } else next.add(id)
+    return next
+  })
 
   const { nodes, posMap } = useMemo(() => {
     if (!payload) return { nodes: [], posMap: new Map() }
@@ -120,6 +169,46 @@ export default function OrbitMap({ payload, light = false, selectedDepartmentId,
   const onHover = (id) => { setHoveredId(id); setHoveredDepartmentId?.(id) }
   const onLeave = () => { setHoveredId(null); setHoveredDepartmentId?.(null) }
 
+  // A sub-department planet. If it has children and is expanded, its own orbit (a smaller
+  // ellipse of planets) is drawn around it, recursively for deeper levels.
+  const renderPlanet = (kid, px, py, color, ringR, depth) => {
+    const kid_id = String(kid.id)
+    const kh = hoveredChildId === kid_id
+    const gkids = kidsByParent.get(kid_id) || []
+    const expandable = gkids.length > 0
+    const isExp = expandable && expandedIds.has(kid_id)
+    const rr = Math.max(24, ringR * 0.66)
+    const ry = rr * 0.6
+    const dot = kh ? 7 : 5
+    return (
+      <g key={kid_id}>
+        {isExp && (
+          <ellipse cx={px} cy={py} rx={rr} ry={ry} fill="none" stroke={color} strokeWidth={1} opacity={light ? 0.5 : 0.35} />
+        )}
+        <g style={{ cursor: 'pointer' }}
+          onMouseEnter={() => { setHoveredChildId(kid_id); setHoveredDepartmentId?.(kid_id) }}
+          onMouseLeave={() => { setHoveredChildId(null); setHoveredDepartmentId?.(null) }}
+          onClick={(e) => { e.stopPropagation(); if (expandable) toggleExpanded(kid_id); setSelectedDepartmentId(kid_id) }}>
+          <circle cx={px} cy={py} r={13} fill="transparent" />
+          {expandable && <circle cx={px} cy={py} r={dot + 3} fill="none" stroke={color} strokeWidth={1.4} opacity={isExp ? 0.95 : 0.5} />}
+          <circle cx={px} cy={py} r={dot} fill={color} stroke={kh ? (light ? '#0F172A' : '#FFFFFF') : (light ? 'rgba(255,255,255,0.9)' : 'rgba(10,22,38,0.6)')} strokeWidth={kh ? 2 : 1} />
+          {expandable && (
+            <text x={px} y={py + 0.5} textAnchor="middle" dominantBaseline="middle" fill={light ? '#0F172A' : '#0A1626'} fontSize={8.5} fontWeight={900} fontFamily="Inter, sans-serif" style={{ pointerEvents: 'none' }}>{isExp ? '−' : gkids.length}</text>
+          )}
+          {(kh || isExp) && (
+            <text x={px} y={py - 13} textAnchor="middle" fill={light ? '#0F172A' : '#FFFFFF'} fontSize={11.5} fontWeight={800} fontFamily="Inter, sans-serif"
+              style={{ paintOrder: 'stroke', stroke: BG, strokeWidth: 3.5, strokeLinejoin: 'round', pointerEvents: 'none' }}>{kid.name}</text>
+          )}
+        </g>
+        {isExp && gkids.slice(0, 14).map((gk, k, arr) => {
+          const pa = (2 * Math.PI) * (k / arr.length) - Math.PI / 2
+          const gx = px + Math.cos(pa) * rr, gy = py + Math.sin(pa) * ry
+          return renderPlanet(gk, gx, gy, color, rr, depth + 1)
+        })}
+      </g>
+    )
+  }
+
   const relStyle = (r, hot) => {
     if (r.is_critical) return { stroke: CRIT, width: hot ? 2.4 : 1.6, dash: '', op: hot ? 0.85 : 0.5 }
     const s = String(r.strength || '').toLowerCase()
@@ -140,7 +229,7 @@ export default function OrbitMap({ payload, light = false, selectedDepartmentId,
               <radialGradient id="og-baing" cx="42%" cy="38%" r="65%"><stop offset="0%" stopColor={light ? "#3B82F6" : "#93C5FD"} /><stop offset="100%" stopColor={light ? "#1E3A8A" : "#1D4ED8"} /></radialGradient>
             </defs>
 
-            <rect width={W} height={H} fill={BG} onClick={() => setSelectedDepartmentId(null)} />
+            <rect width={W} height={H} fill={BG} onClick={() => { setExpandedIds(new Set()); setSelectedDepartmentId(null) }} />
             <pattern id="o-dots" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill={light ? "rgba(15,23,42,0.07)" : "rgba(148,163,184,0.06)"} /></pattern>
             <rect width={W} height={H} fill="url(#o-dots)" style={{ pointerEvents: 'none' }} />
 
@@ -167,7 +256,7 @@ export default function OrbitMap({ payload, light = false, selectedDepartmentId,
               const isSel = String(selectedDepartmentId) === nd.id
               const isHov = hoveredId === nd.id
               const isAct = isSel || isHov
-              const isDim = Boolean(activeId) && !isAct && !connectedIds.has(nd.id)
+              const isDim = Boolean(activeId) && !isAct && !connectedIds.has(nd.id) && !litRoots.has(nd.id)
               const nr = isAct ? NR + 3 : NR
               const rx = nr + 26, ry = nr + 15
               return (
@@ -179,21 +268,7 @@ export default function OrbitMap({ payload, light = false, selectedDepartmentId,
                       {nd.childList.slice(0, 14).map((kid, k, arr) => {
                         const pa = (2 * Math.PI) * (k / arr.length) - Math.PI / 2
                         const px = nd.x + Math.cos(pa) * rx, py = nd.y + Math.sin(pa) * ry
-                        const kid_id = String(kid.id)
-                        const kh = hoveredChildId === kid_id
-                        return (
-                          <g key={kid_id} style={{ cursor: 'pointer' }}
-                            onMouseEnter={() => { setHoveredChildId(kid_id); setHoveredDepartmentId?.(kid_id) }}
-                            onMouseLeave={() => { setHoveredChildId(null); setHoveredDepartmentId?.(null) }}
-                            onClick={(e) => { e.stopPropagation(); setSelectedDepartmentId(kid_id) }}>
-                            <circle cx={px} cy={py} r={11} fill="transparent" />
-                            <circle cx={px} cy={py} r={kh ? 7 : 5} fill={nd.color} stroke={kh ? (light ? '#0F172A' : '#FFFFFF') : (light ? 'rgba(255,255,255,0.9)' : 'rgba(10,22,38,0.6)')} strokeWidth={kh ? 2 : 1} />
-                            {kh && (
-                              <text x={px} y={py - 13} textAnchor="middle" fill="#FFFFFF" fontSize={11.5} fontWeight={800} fontFamily="Inter, sans-serif"
-                                style={{ paintOrder: 'stroke', stroke: BG, strokeWidth: 3.5, strokeLinejoin: 'round', pointerEvents: 'none' }}>{kid.name}</text>
-                            )}
-                          </g>
-                        )
+                        return renderPlanet(kid, px, py, nd.color, Math.max(rx, ry), 1)
                       })}
                     </g>
                   )}

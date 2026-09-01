@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header">
   <h1>Відділи</h1>
-  {% if current_user.admin_role in ['super_admin', 'admin'] %}
+  {% if current_user.admin_role in ['super_admin', 'admin'] or current_user.department_id %}
     <a class="btn btn-primary" href="{{ url_for('departments.create_department') }}">+ Додати відділ</a>
   {% endif %}
 </div>

@@ -34,6 +34,33 @@
 </div>
 
 <div class="card">
+  <details>
+    <summary style="cursor:pointer; font-weight:700;">📋 Масовий імпорт країн (списком з Excel)</summary>
+    <form method="post" action="{{ url_for('settings.bulk_geo_locations') }}" class="form-grid" style="margin-top:14px;">
+      <div class="field">
+        <label>GEO Group</label>
+        <select name="geo_id" required>
+          <option value="">-- Обрати --</option>
+          {% for item in geos %}
+            <option value="{{ item.id }}">{{ item.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field full">
+        <label>Країни — по одній у рядку</label>
+        <textarea name="names" rows="8" placeholder="Скопіюйте стовпець з Excel і вставте сюди:&#10;Puerto Rico&#10;Chile&#10;Peru&#10;Mexico" required></textarea>
+        <span class="muted">Вставте стовпець з Excel (кожна країна з нового рядка). Дублі та вже наявні країни пропускаються автоматично. Тип — «country».</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" type="submit">Імпортувати список</button>
+      </div>
+    </form>
+  </details>
+</div>
+
+<div class="card">
   <table class="table">
     <thead><tr><th>GEO</th><th>Назва</th><th>Тип</th><th>Людей</th><th></th></tr></thead>
     <tbody>

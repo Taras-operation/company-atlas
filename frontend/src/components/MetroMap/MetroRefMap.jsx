@@ -116,7 +116,7 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
   const REL_FAINT = light ? 0.32 : 0.14
   const REL_HOT = light ? 0.85 : 0.6
   const [overrides, setOverrides] = useState({}) // live drag positions {id:{x,y}}
-  const [expandedId, setExpandedId] = useState(null) // ring station whose sub-departments are popped out
+  const [expandedIds, setExpandedIds] = useState(() => new Set()) // sub-departments whose deeper children are popped out (levels 3+)
   const [hoveredRelId, setHoveredRelId] = useState(null) // relation hovered directly
   const svgRef = useRef(null)
   const dragRef = useRef(null) // {id}
@@ -345,13 +345,36 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
   const lineGroups = useMemo(() => {
     if (!payload) return []
 
+    // Classic colours for known types, used when a type has no explicit colour set.
+    const typeDefaultColor = (name) => {
+      const t = (name || '').toLowerCase()
+      if (/сервіс|сервис|service/.test(t)) return '#F97316'
+      if (/ба[иіїы]нг|baing|buying/.test(t)) return '#3B82F6'
+      if (/регіон|регион|regional/.test(t)) return '#22C55E'
+      return null
+    }
+
+    // Auto-palette for multi-colour lines: pick the next colour not already claimed
+    // by an explicit type colour (so auto colours never clash with fixed ones).
+    const used = new Set()
+    payload.lines.forEach((l) => { if (l.color) used.add(l.color.toLowerCase()) })
+    let autoIdx = 0
+    const nextAuto = () => {
+      for (let k = 0; k < LINE_COLORS.length; k += 1) {
+        const c = LINE_COLORS[(autoIdx + k) % LINE_COLORS.length]
+        if (!used.has(c.toLowerCase())) { autoIdx = (autoIdx + k + 1); used.add(c.toLowerCase()); return c }
+      }
+      return LINE_COLORS[autoIdx++ % LINE_COLORS.length]
+    }
+    const geoColors = payload.geo_colors || {}
+
     if (layoutMode === 'type') {
       // each payload line (type) = one line; stations = roots; children branch off
       return payload.lines
         .map((line, i) => ({
           id: line.id ?? `t-${i}`,
           name: line.name,
-          color: line.color || LINE_COLORS[i % LINE_COLORS.length],
+          color: line.color || typeDefaultColor(line.name) || LINE_COLORS[i % LINE_COLORS.length],
           roots: line.stations.filter((s) => parentIdOf(s) == null),
           withBranches: true,
         }))
@@ -361,30 +384,39 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
     // GEO mode: group REGIONAL roots by their GEO; each GEO = a line.
     const geoMap = new Map()
     const otherByType = new Map()
+    let regionalColor = null
+    let regionalMode = null
     payload.lines.forEach((line) => {
       line.stations.forEach((s) => {
         if (parentIdOf(s) != null) return
         if (isRegional(s, line)) {
+          regionalColor = line.color || typeDefaultColor(line.name)
+          regionalMode = line.color_mode
           const gk = geoKeyOf(s) || 'Без GEO'
           if (!geoMap.has(gk)) geoMap.set(gk, [])
           geoMap.get(gk).push(s)
         } else {
           const key = line.name || 'Інші'
-          if (!otherByType.has(key)) otherByType.set(key, { name: key, color: line.color, roots: [] })
+          if (!otherByType.has(key)) otherByType.set(key, { name: key, color: line.color, colorMode: line.color_mode, roots: [] })
           otherByType.get(key).roots.push(s)
         }
       })
     })
 
     const groups = []
-    let ci = 0
     Array.from(geoMap.entries()).forEach(([geoName, roots]) => {
-      groups.push({ id: `geo-${geoName}`, name: geoName, color: LINE_COLORS[ci % LINE_COLORS.length], roots, chainChildren: true })
-      ci += 1
+      // Regional: one colour only if the type is explicitly single with a colour;
+      // otherwise each region gets its own colour (manual override or auto) — the classic look.
+      const color = (regionalMode === 'single' && regionalColor)
+        ? regionalColor
+        : (geoColors[geoName] || nextAuto())
+      groups.push({ id: `geo-${geoName}`, name: geoName, color, roots, chainChildren: true })
     })
     Array.from(otherByType.values()).forEach((g) => {
-      groups.push({ id: `svc-${g.name}`, name: g.name, color: g.color || LINE_COLORS[ci % LINE_COLORS.length], roots: g.roots, isService: true })
-      ci += 1
+      const color = g.colorMode === 'multi'
+        ? nextAuto()
+        : (g.color || typeDefaultColor(g.name) || nextAuto())
+      groups.push({ id: `svc-${g.name}`, name: g.name, color, roots: g.roots, isService: true })
     })
     return groups
   }, [payload, layoutMode])
@@ -405,6 +437,37 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
       }
       const ap = aid != null ? pos.get(String(aid)) : null
       return ap ? { id: String(aid), dx: ap.dx || 0, dy: ap.dy || 0 } : null
+    }
+
+    // Recursively pop out the children of any EXPANDED node (levels 3+). The line layout
+    // below always places levels 1-2; deeper sub-departments stay hidden on the general
+    // map and appear only when their parent has been clicked (its id is in expandedIds),
+    // fanning outward from it. Their own children appear when they too get expanded.
+    const placeExpandedDescendants = () => {
+      const queue = []
+      pos.forEach((_v, k) => { if (expandedIds.has(k)) queue.push(k) })
+      const done = new Set()
+      while (queue.length) {
+        const pid = queue.shift()
+        if (done.has(pid)) continue
+        done.add(pid)
+        const parent = pos.get(pid)
+        if (!parent) continue
+        const kids = childrenOf(pid).filter((k) => !hidden.has(String(k.id)) && !pos.has(String(k.id)))
+        if (!kids.length) continue
+        const rr = 52 + Math.min(30, kids.length * 4)
+        // outward direction: the node's own branch direction, else radially away from HQ
+        let ox = parent.dx || 0, oy = parent.dy || 0
+        if (!ox && !oy) { const vx = parent.x - CX, vy = parent.y - CY, vl = Math.hypot(vx, vy) || 1; ox = vx / vl; oy = vy / vl }
+        const baseA = Math.atan2(oy, ox)
+        const spread = Math.PI * 0.85
+        kids.forEach((kid, ki) => {
+          const a = kids.length === 1 ? baseA : baseA - spread / 2 + spread * (ki / (kids.length - 1))
+          const ux = Math.cos(a), uy = Math.sin(a)
+          pos.set(String(kid.id), { x: parent.x + ux * rr, y: parent.y + uy * rr, color: parent.color, station: kid, dx: ux, dy: uy, isRoot: false, branchFrom: { x: parent.x, y: parent.y } })
+          if (expandedIds.has(String(kid.id))) queue.push(String(kid.id))
+        })
+      }
     }
 
     // ===== TYPE MODE: each type = one line to its own side (comb / vertical) =====
@@ -504,6 +567,7 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
         rayPaths.push({ id: g.id, name: g.name, color: LC(g.color), points: pts, trunk, feeders, spineIds, nameAt, nameAnchor: makeNameAnchor(spineIds, feeders) })
       })
 
+      placeExpandedDescendants()
       return { positions: pos, rays: rayPaths }
     }
 
@@ -519,20 +583,6 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
         const bx = x + perp[0] * GEO_BRANCH * (ki + 1)
         const by = y + perp[1] * GEO_BRANCH * (ki + 1)
         pos.set(String(kid.id), { x: bx, y: by, color: LC(color), station: kid, dx: perp[0], dy: perp[1], isRoot: false, branchFrom: { x, y }, faint })
-      })
-    }
-
-    // Ring lines (Сервісний / Баинг): sub-departments are hidden until the parent is
-    // clicked, then they pop out in a small circle around it.
-    const placeRingChildren = (root, x, y, color) => {
-      const kids = childrenOf(root.id).filter((k) => !hidden.has(String(k.id)))
-      if (String(root.id) !== String(expandedId) || !kids.length) return
-      const rr = 46 + Math.min(28, kids.length * 3)
-      const stepA = (2 * Math.PI) / kids.length
-      kids.forEach((kid, ki) => {
-        const a = ki * stepA - Math.PI / 2
-        const ux = Math.cos(a), uy = Math.sin(a)
-        pos.set(String(kid.id), { x: x + ux * rr, y: y + uy * rr, color, station: kid, dx: ux, dy: uy, isRoot: false, branchFrom: { x, y } })
       })
     }
 
@@ -656,8 +706,9 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
       rayPaths.push({ id: g.id, name: g.name, color: LC(g.color), points: pts, trunk: [], feeders: [], spineIds, ring: isRing, nameAngled, nameAt: lastP ? { x: lastP.x, y: lastP.y - 22 } : null, nameAnchor: makeNameAnchor(spineIds, null) })
     })
 
+    placeExpandedDescendants()
     return { positions: pos, rays: rayPaths }
-  }, [lineGroups, layoutMode, childrenByParent, geometry, expandedId, light])
+  }, [lineGroups, layoutMode, childrenByParent, geometry, expandedIds, light])
 
   const connectedIds = useMemo(() => {
     const set = new Set()
@@ -668,6 +719,27 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
     })
     return set
   }, [payload, activeId])
+
+  // Same-family ids for the active node: its sub-departments (descendants) and its
+  // parent chain (ancestors) — so selecting a main department lights up its children.
+  const activeKin = useMemo(() => {
+    const set = new Set()
+    if (!activeId) return set
+    const stack = [String(activeId)]
+    while (stack.length) {
+      const cur = stack.pop()
+      childrenOf(cur).forEach((k) => { const kid = String(k.id); if (!set.has(kid)) { set.add(kid); stack.push(kid) } })
+    }
+    let node = positions.get(String(activeId))
+    let guard = 0
+    while (node && guard++ < 30) {
+      const pid = parentIdOf(node.station)
+      if (pid == null) break
+      set.add(String(pid))
+      node = positions.get(String(pid))
+    }
+    return set
+  }, [activeId, childrenByParent, positions])
 
   const visibleRelations = useMemo(() => {
     if (!payload) return []
@@ -693,7 +765,7 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
               <filter id="mr-glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
             </defs>
 
-            <rect width={W} height={H} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null); setExpandedId(null); setSelectedDepartmentId(null) }} />
+            <rect width={W} height={H} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null); setExpandedIds(new Set()); setSelectedDepartmentId(null) }} />
             <pattern id="mr-dots" x="0" y="0" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill={light ? "rgba(15,23,42,0.07)" : "rgba(148,163,184,0.06)"} /></pattern>
             <rect width={W} height={H} fill="url(#mr-dots)" style={{ pointerEvents: 'none' }} />
 
@@ -904,11 +976,14 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
               const isSel = String(selectedDepartmentId) === id
               const isHov = hoveredId === id
               const isAct = isSel || isHov
-              const isDim = Boolean(activeId) && !isAct && !connectedIds.has(id)
-              const expandable = Boolean(posItem.expandable && posItem.childCount > 0)
-              const isExpanded = expandable && String(expandedId) === id
+              const isDim = Boolean(activeId) && !isAct && !connectedIds.has(id) && !activeKin.has(id)
+              // A sub-department (non-root) that has its own children can be expanded to pop
+              // them out. Roots always show their direct children, so they aren't "expandable".
+              const kidCount = childrenOf(station.id).length
+              const expandable = !isRoot && kidCount > 0
+              const isExpanded = expandable && expandedIds.has(id)
               // faint sub-departments (service branches): 50% until this node or its parent is active
-              const parentActive = posItem.faint && activeId != null && String(parentIdOf(station)) === String(activeId)
+              const parentActive = posItem.faint && activeId != null && (String(parentIdOf(station)) === String(activeId) || activeKin.has(id))
               const faintOp = posItem.faint && !isAct && !parentActive ? (light ? 0.68 : 0.5) : 1
               const r = isAct ? 13 : (expandable ? 12 : (isRoot ? 11 : 7))
               const lx = x + (dx || 0) * 17
@@ -922,8 +997,24 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
                   onClick={(e) => {
                     if (constructorMode && constructorTool === 'erase') { e.stopPropagation(); return } // stations are not deletable
                     if (constructorMode) return
-                    // Expandable ring station: toggle its sub-departments; otherwise collapse any open one.
-                    setExpandedId((cur) => (expandable ? (String(cur) === id ? null : id) : null))
+                    // Expandable sub-department: toggle its deeper children. Collapsing also
+                    // collapses everything under it so re-opening starts from one level.
+                    if (expandable) {
+                      setExpandedIds((cur) => {
+                        const next = new Set(cur)
+                        if (next.has(id)) {
+                          const stack = [id]
+                          while (stack.length) {
+                            const cur2 = stack.pop()
+                            next.delete(cur2)
+                            childrenOf(cur2).forEach((k) => stack.push(String(k.id)))
+                          }
+                        } else {
+                          next.add(id)
+                        }
+                        return next
+                      })
+                    }
                     setSelectedDepartmentId(id)
                   }}
                   onDoubleClick={(e) => {
@@ -948,7 +1039,7 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
                       {/* sub-department count inside the station */}
                       {expandable && (
                         <text x={x} y={y + 0.5} textAnchor="middle" dominantBaseline="middle" fill={nodeColor} fontSize={11} fontWeight={900} fontFamily="Inter, sans-serif" style={{ pointerEvents: 'none' }}>
-                          {posItem.childCount}
+                          {isExpanded ? '−' : kidCount}
                         </text>
                       )}
                     </>

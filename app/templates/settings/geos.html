@@ -10,6 +10,7 @@
   <form method="post" action="{{ url_for('settings.edit_geo', item_id=edit_item.id) }}" class="form-grid">
     <div class="field"><label>Назва</label><input type="text" name="name" value="{{ edit_item.name }}" required></div>
     <div class="field"><label>Код</label><input type="text" name="code" value="{{ edit_item.code or '' }}"></div>
+    <div class="field"><label>Колір (для мультиколір-регіонів)</label><input type="color" name="color" value="{{ edit_item.color or '#22C55E' }}" style="width:56px;height:40px;padding:2px;"></div>
     <div class="actions full">
       <button class="btn btn-primary" type="submit">Зберегти</button>
       <a href="{{ url_for('settings.geos') }}" class="btn btn-secondary">Скасувати</a>
@@ -21,9 +22,24 @@
   <form method="post" class="form-grid">
     <div class="field"><label>Назва</label><input type="text" name="name" required></div>
     <div class="field"><label>Код</label><input type="text" name="code"></div>
+    <div class="field"><label>Колір</label><input type="color" name="color" value="#22C55E" style="width:56px;height:40px;padding:2px;"></div>
     <div class="field full"><label>Опис</label><textarea name="description" rows="2"></textarea></div>
     <div class="actions"><button class="btn btn-primary" type="submit">Додати</button></div>
   </form>
+</div>
+
+<div class="card">
+  <details>
+    <summary style="cursor:pointer; font-weight:700;">📋 Масовий імпорт GEO-груп (списком з Excel)</summary>
+    <form method="post" action="{{ url_for('settings.bulk_geos') }}" class="form-grid" style="margin-top:14px;">
+      <div class="field full">
+        <label>GEO-групи — по одній у рядку</label>
+        <textarea name="names" rows="8" placeholder="Назва або «Назва, КОД» у кожному рядку:&#10;LATAM, LAT&#10;EUROPE, EU&#10;ASIA&#10;AFRICA" required></textarea>
+        <span class="muted">Кожна група з нового рядка. Можна вказати код через кому: «Назва, КОД». Дублі назв пропускаються; конфліктні коди просто обнуляються.</span>
+      </div>
+      <div class="actions"><button class="btn btn-primary" type="submit">Імпортувати список</button></div>
+    </form>
+  </details>
 </div>
 {% endif %}
 

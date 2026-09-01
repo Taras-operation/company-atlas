@@ -24,11 +24,31 @@ DEFAULT_LINE_COLORS = [
 ]
 
 
+import re as _re
+
+
+def _classic_type_color(name):
+    """Stable classic colour for well-known type names (so colours don't shift
+    when new types are added)."""
+    t = (name or "").lower()
+    if _re.search(r"сервіс|сервис|service", t):
+        return "#F97316"
+    if _re.search(r"ба[иіїы]нг|baing|buying", t):
+        return "#3B82F6"
+    if _re.search(r"регіон|регион|regional", t):
+        return "#22C55E"
+    return None
+
+
 def _get_type_color(department_type, index=0):
-    """Return saved department type color or stable fallback color."""
+    """Return saved department type color, else a classic colour by name,
+    else a stable fallback by index."""
     color = getattr(department_type, "color", None)
     if color:
         return color
+    classic = _classic_type_color(getattr(department_type, "name", None))
+    if classic:
+        return classic
     return DEFAULT_LINE_COLORS[index % len(DEFAULT_LINE_COLORS)]
 
 
@@ -38,6 +58,7 @@ def _serialize_department_type(department_type, index=0):
         "name": department_type.name,
         "description": department_type.description,
         "color": _get_type_color(department_type, index),
+        "color_mode": getattr(department_type, "color_mode", None) or "single",
     }
 
 
@@ -955,13 +976,16 @@ def build_visualization_map_payload(brand_id=None, geo_id=None, public_view=Fals
             station["relations"] = department_relation_index.get(station_id, [])
             station["relation_count"] = len(station["relations"])
 
+    all_geos = Geo.query.order_by(Geo.name.asc()).all()
     return {
         "mode": "public" if public_view else "authorized",
         "lines": lines,
         "relations": relations,
+        # Manual per-region colours (used when a type is in multi-colour mode).
+        "geo_colors": {g.name: g.color for g in all_geos if getattr(g, "color", None)},
         "filters": {
             "brands": [_serialize_filter_item(brand) for brand in Brand.query.order_by(Brand.name.asc()).all()],
-            "geos": [_serialize_filter_item(geo) for geo in Geo.query.order_by(Geo.name.asc()).all()],
+            "geos": [_serialize_filter_item(geo) for geo in all_geos],
         },
         "legend": {
             "line_color": "Цвет линии = тип отдела",

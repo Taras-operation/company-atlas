@@ -20,6 +20,7 @@
         <option value="admin" {% if user.admin_role == "admin" %}selected{% endif %}>Admin</option>
         <option value="head_tl" {% if user.admin_role == "head_tl" %}selected{% endif %}>Head TL</option>
         <option value="tl" {% if user.admin_role == "tl" %}selected{% endif %}>TL</option>
+        <option value="operation" {% if user.admin_role == "operation" %}selected{% endif %}>Operation</option>
         <option value="viewer" {% if user.admin_role == "viewer" %}selected{% endif %}>Viewer</option>
       </select>
     </div>

@@ -8,7 +8,7 @@ def is_global_admin():
 
 
 def is_tl_user():
-    return current_user.admin_role in ["head_tl", "tl"]
+    return current_user.admin_role in ["head_tl", "tl", "operation"]
 
 
 def get_accessible_department_ids():
@@ -56,4 +56,6 @@ def can_approve_visibility_requests():
 
 
 def can_view_audit():
-    return is_global_admin()
+    # Global admins see everything; scoped roles (head_tl / tl / operation) see the
+    # audit trail for their own department subtree.
+    return is_global_admin() or bool(getattr(current_user, "department_id", None))

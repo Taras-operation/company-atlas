@@ -10,6 +10,7 @@ class DepartmentType(db.Model):
     name = db.Column(db.String(100), nullable=False, unique=True, index=True)
     description = db.Column(db.Text)
     color = db.Column(db.String(20))
+    color_mode = db.Column(db.String(10), default="single", nullable=False)  # 'single' | 'multi'
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     departments = db.relationship("Department", back_populates="department_type")
@@ -43,6 +44,7 @@ class Geo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False, unique=True, index=True)
     code = db.Column(db.String(50), unique=True)
+    color = db.Column(db.String(20))  # manual colour for multi-colour regional lines
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

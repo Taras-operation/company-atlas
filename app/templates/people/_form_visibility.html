@@ -331,12 +331,13 @@
         return item.trim();
       }).filter(Boolean);
 
-      if (parent.checked) return;
-
+      // Turning a master ON ticks all its children; turning it OFF unticks them.
+      // Recurse so nested groups (e.g. "люди" -> "контакти людей" -> email/…) follow.
       controlled.forEach(function (name) {
         const child = getCheckbox(name);
         if (child) {
-          child.checked = false;
+          child.checked = parent.checked;
+          syncControlledChildren(child);
         }
       });
     }

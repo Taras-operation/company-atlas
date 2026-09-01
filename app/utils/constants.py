@@ -2,6 +2,9 @@ ADMIN_ROLES = {
     "super_admin": "Super Admin",
     "admin": "Admin",
     "head_tl": "Head / TL",
+    "tl": "TL",
+    "operation": "Operation",
+    "viewer": "Viewer",
 }
 
 ROLE_TYPES = {
