@@ -88,13 +88,14 @@ def create_app() -> Flask:
     def init_db() -> None:
         """Create any missing tables (idempotent, matches models exactly)."""
         db.create_all()
-        _seed_type_colors()
         print("init-db: tables ensured")
 
     def _seed_type_colors():
-        """One-time: give known types their classic colour + colour mode where unset,
-        so colours stay stable and regional stays multi-colour. Idempotent (only
-        touches types whose colour is still empty)."""
+        """Give known types their classic colour + colour mode where unset, so colours
+        stay stable and regional stays multi-colour. Idempotent (only touches types
+        whose colour is still empty). Defensive: never aborts the deploy — on an old
+        DB where the columns don't exist yet it simply rolls back and no-ops (the
+        columns are added by patch-schema, which then calls this again)."""
         import re as _re
         from app.models import DepartmentType
 
@@ -108,18 +109,22 @@ def create_app() -> Flask:
                 return "#22C55E", "multi"
             return None, None
 
-        changed = False
-        for dt in DepartmentType.query.all():
-            if getattr(dt, "color", None):
-                continue
-            color, mode = classic(dt.name)
-            if color:
-                dt.color = color
-                dt.color_mode = mode
-                changed = True
-        if changed:
-            db.session.commit()
-            print("init-db: seeded classic type colours")
+        try:
+            changed = False
+            for dt in DepartmentType.query.all():
+                if getattr(dt, "color", None):
+                    continue
+                color, mode = classic(dt.name)
+                if color:
+                    dt.color = color
+                    dt.color_mode = mode
+                    changed = True
+            if changed:
+                db.session.commit()
+                print("seed-type-colours: applied classic type colours")
+        except Exception as exc:  # noqa: BLE001
+            db.session.rollback()
+            print(f"seed-type-colours: skipped ({exc})")
 
     @app.cli.command("reset-db")
     def reset_db() -> None:
@@ -143,24 +148,27 @@ def create_app() -> Flask:
         from sqlalchemy import text
 
         engine = db.engine
-        if engine.dialect.name != "postgresql":
-            print("patch-schema: skipped (not postgres)")
-            return
+        if engine.dialect.name == "postgresql":
+            statements = [
+                "ALTER TABLE departments ALTER COLUMN short_description TYPE TEXT",
+                "ALTER TABLE people ALTER COLUMN short_description TYPE TEXT",
+                "ALTER TABLE department_relations ALTER COLUMN short_description TYPE TEXT",
+                "ALTER TABLE people ALTER COLUMN email TYPE TEXT",
+                "ALTER TABLE department_types ADD COLUMN IF NOT EXISTS color VARCHAR(20)",
+                "ALTER TABLE department_types ADD COLUMN IF NOT EXISTS color_mode VARCHAR(10) DEFAULT 'single'",
+                "ALTER TABLE geos ADD COLUMN IF NOT EXISTS color VARCHAR(20)",
+            ]
+            with engine.begin() as conn:
+                for stmt in statements:
+                    try:
+                        conn.execute(text(stmt))
+                    except Exception as exc:  # noqa: BLE001
+                        print(f"patch-schema: skip ({exc})")
+        else:
+            print("patch-schema: skipped ALTERs (not postgres)")
 
-        statements = [
-            "ALTER TABLE departments ALTER COLUMN short_description TYPE TEXT",
-            "ALTER TABLE people ALTER COLUMN short_description TYPE TEXT",
-            "ALTER TABLE department_relations ALTER COLUMN short_description TYPE TEXT",
-            "ALTER TABLE people ALTER COLUMN email TYPE TEXT",
-            "ALTER TABLE department_types ADD COLUMN IF NOT EXISTS color_mode VARCHAR(10) DEFAULT 'single'",
-            "ALTER TABLE geos ADD COLUMN IF NOT EXISTS color VARCHAR(20)",
-        ]
-        with engine.begin() as conn:
-            for stmt in statements:
-                try:
-                    conn.execute(text(stmt))
-                except Exception as exc:  # noqa: BLE001
-                    print(f"patch-schema: skip ({exc})")
+        # Seed classic type colours now that the colour columns are guaranteed to exist.
+        _seed_type_colors()
         print("patch-schema: done")
 
     @app.cli.command("seed-admin")
