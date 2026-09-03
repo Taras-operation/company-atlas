@@ -79,6 +79,33 @@ def _can_access_department(dep):
     return dep.id in accessible_ids
 
 
+def _descendant_ids(root_id):
+    """All non-archived descendants of a department (any depth)."""
+    ids = set()
+    queue = [root_id]
+    while queue:
+        pid = queue.pop(0)
+        for child in Department.query.filter_by(parent_department_id=pid, is_archived=False).all():
+            if child.id not in ids:
+                ids.add(child.id)
+                queue.append(child.id)
+    return ids
+
+
+def _resolve_parent_for_scoped_user(chosen_parent_id, dep=None):
+    """A non-admin (TL / Operation) may set the parent to any department inside their
+    accessible subtree — including a sub-department, so grandchildren can be created —
+    but never onto the edited department itself or one of its own descendants (that
+    would create a cycle). Returns the allowed parent id, falling back to the current
+    parent (edit) or the user's own department (create) when the choice is not allowed."""
+    accessible_ids = get_accessible_department_ids() or []
+    if chosen_parent_id in accessible_ids:
+        if dep is not None and chosen_parent_id in ({dep.id} | _descendant_ids(dep.id)):
+            return dep.parent_department_id  # cycle — keep the current parent
+        return chosen_parent_id
+    return dep.parent_department_id if dep is not None else current_user.department_id
+
+
 @departments_bp.route("/")
 @login_required
 def list_departments():
@@ -145,7 +172,7 @@ def create_department():
         size_label = request.form.get("size_label", "").strip()
         parent_department_id = request.form.get("parent_department_id", type=int)
         if not is_global_admin():
-            parent_department_id = current_user.department_id
+            parent_department_id = _resolve_parent_for_scoped_user(parent_department_id)
         email = request.form.get("email", "").strip()
         telegram = request.form.get("telegram", "").strip()
         chat_link = request.form.get("chat_link", "").strip()
@@ -243,7 +270,7 @@ def edit_department(department_id):
         size_label = request.form.get("size_label", "").strip()
         parent_department_id = request.form.get("parent_department_id", type=int)
         if not is_global_admin():
-            parent_department_id = dep.parent_department_id
+            parent_department_id = _resolve_parent_for_scoped_user(parent_department_id, dep=dep)
         email = request.form.get("email", "").strip()
         telegram = request.form.get("telegram", "").strip()
         chat_link = request.form.get("chat_link", "").strip()
