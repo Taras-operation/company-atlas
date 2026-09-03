@@ -263,13 +263,16 @@
             {{ item.entity_name }}
           </div>
 
-          {% if item.url %}
-            <div class="activity-actions">
+          <div class="activity-actions">
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('audit.detail_audit', log_id=item.id) }}">
+              Деталі
+            </a>
+            {% if item.url %}
               <a class="btn btn-secondary btn-sm" href="{{ item.url }}">
-                Переглянути
+                Відкрити картку
               </a>
-            </div>
-          {% endif %}
+            {% endif %}
+          </div>
 
         </div>
       </div>
