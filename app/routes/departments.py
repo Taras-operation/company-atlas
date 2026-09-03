@@ -92,6 +92,24 @@ def _descendant_ids(root_id):
     return ids
 
 
+def _dep_in_scope(dep):
+    """True if dep is the user's own department or a descendant of it. Unlike
+    get_accessible_department_ids (which skips archived departments), this walks the
+    parent chain, so it also works for an archived department being restored."""
+    if is_global_admin():
+        return True
+    root = getattr(current_user, "department_id", None)
+    if not root:
+        return False
+    cur, guard = dep, 0
+    while cur is not None and guard < 50:
+        if cur.id == root:
+            return True
+        cur = Department.query.get(cur.parent_department_id) if cur.parent_department_id else None
+        guard += 1
+    return False
+
+
 def _resolve_parent_for_scoped_user(chosen_parent_id, dep=None):
     """A non-admin (TL / Operation) may set the parent to any department inside their
     accessible subtree — including a sub-department, so grandchildren can be created —
@@ -355,7 +373,7 @@ def archive_departments():
 def restore_department(department_id):
     dep = Department.query.get_or_404(department_id)
 
-    if current_user.admin_role not in ["super_admin", "admin"]:
+    if not _dep_in_scope(dep):
         flash("Немає доступу", "danger")
         return redirect(url_for("dashboard.index"))
 
@@ -382,7 +400,7 @@ def restore_department(department_id):
 def archive_department(department_id):
     dep = Department.query.get_or_404(department_id)
 
-    if current_user.admin_role not in ["super_admin", "admin"]:
+    if not _dep_in_scope(dep):
         flash("Немає доступу", "danger")
         return redirect(url_for("dashboard.index"))
 

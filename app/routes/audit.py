@@ -1,7 +1,7 @@
 from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
-from app.models import AuditLog, Department, Person
+from app.models import AuditLog, Department, DepartmentType, Person, RelationType
 
 
 audit_bp = Blueprint("audit", __name__, url_prefix="/audit")
@@ -115,6 +115,82 @@ def _entity_url(log):
     return None
 
 
+FIELD_LABELS = {
+    "name": "Назва",
+    "full_name": "Ім'я",
+    "username": "Логін",
+    "position": "Посада",
+    "size_label": "Розмір",
+    "description": "Опис",
+    "short_description": "Короткий опис",
+    "full_description": "Повний опис",
+    "functions": "Функції",
+    "color": "Колір",
+    "color_mode": "Режим кольору",
+    "admin_role": "Роль",
+    "grade": "Грейд",
+    "strength": "Сила зв'язку",
+    "direction": "Напрям",
+    "is_bidirectional": "Двосторонній",
+    "department_type_id": "Тип відділу",
+    "parent_department_id": "Головний відділ",
+    "department_id": "Відділ",
+    "manager_id": "Керівник",
+    "department_from_id": "Відділ (з)",
+    "department_to_id": "Відділ (до)",
+    "relation_type_id": "Тип зв'язку",
+    "person_id": "Людина",
+    "email": "Email",
+    "telegram": "Telegram",
+    "chat_link": "Чат",
+    "notes": "Нотатки",
+}
+
+_DEPT_KEYS = {"parent_department_id", "department_id", "department_from_id", "department_to_id"}
+_PERSON_KEYS = {"manager_id", "person_id"}
+
+
+def _resolve_value(key, value):
+    """Turn a stored raw value (often an id) into something readable."""
+    if value is None or value == "":
+        return "—"
+    if key == "department_type_id":
+        item = DepartmentType.query.get(value)
+        return item.name if item else f"#{value}"
+    if key == "relation_type_id":
+        item = RelationType.query.get(value)
+        return item.name if item else f"#{value}"
+    if key in _DEPT_KEYS:
+        return _department_name(value) or f"#{value}"
+    if key in _PERSON_KEYS:
+        return _person_name(value) or f"#{value}"
+    if isinstance(value, bool):
+        return "Так" if value else "Ні"
+    return value
+
+
+def _format_changes(log):
+    """Field-by-field before → after for the log's card. On update, unchanged fields
+    are dropped; on create/delete only the side that exists is shown."""
+    old = log.old_data or {}
+    new = log.new_data or {}
+    keys = list(dict.fromkeys(list(old.keys()) + list(new.keys())))
+    rows = []
+    for k in keys:
+        has_old, has_new = k in old, k in new
+        ov, nv = old.get(k), new.get(k)
+        if log.action == "update" and has_old and has_new and ov == nv:
+            continue
+        rows.append({
+            "label": FIELD_LABELS.get(k, k),
+            "old": _resolve_value(k, ov) if has_old else None,
+            "new": _resolve_value(k, nv) if has_new else None,
+            "has_old": has_old,
+            "has_new": has_new,
+        })
+    return rows
+
+
 def _format_activity_item(log):
     action_meta = ACTION_META.get(
         log.action,
@@ -185,4 +261,38 @@ def list_audit():
         "audit/list.html",
         items=items,
         activity_items=activity_items,
+    )
+
+
+def _accessible_actor_ids():
+    """Actor ids a scoped viewer may see (their department subtree). None = all."""
+    from app.models import AdminUser
+    from app.utils.access import get_accessible_department_ids, is_global_admin
+
+    if is_global_admin():
+        return None
+    accessible = get_accessible_department_ids()
+    if not accessible:
+        return set()
+    ids = {row.id for row in AdminUser.query.filter(AdminUser.department_id.in_(accessible)).all()}
+    ids.add(current_user.id)
+    return ids
+
+
+@audit_bp.route("/<int:log_id>")
+@login_required
+def detail_audit(log_id):
+    log = AuditLog.query.get_or_404(log_id)
+
+    actor_ids = _accessible_actor_ids()
+    if actor_ids is not None and log.user_id not in actor_ids:
+        flash("Немає доступу до цього запису", "danger")
+        return redirect(url_for("audit.list_audit"))
+
+    return render_template(
+        "audit/detail.html",
+        item=_format_activity_item(log),
+        log=log,
+        changes=_format_changes(log),
+        entity_url=_entity_url(log),
     )
