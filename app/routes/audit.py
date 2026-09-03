@@ -142,8 +142,10 @@ FIELD_LABELS = {
     "person_id": "Людина",
     "email": "Email",
     "telegram": "Telegram",
+    "phone": "Телефон",
     "chat_link": "Чат",
     "notes": "Нотатки",
+    "responsibility_area": "Зона відповідальності",
 }
 
 _DEPT_KEYS = {"parent_department_id", "department_id", "department_from_id", "department_to_id"}

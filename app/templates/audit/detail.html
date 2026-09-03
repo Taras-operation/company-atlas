@@ -39,9 +39,9 @@
         {% for row in changes %}
           <tr>
             <td class="log-field">{{ row.label }}</td>
-            <td class="log-old">{% if row.has_old %}{{ row.old }}{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td class="log-old">{% if row.has_old %}{{ row.old|striptags|truncate(240, True) }}{% else %}<span class="muted">—</span>{% endif %}</td>
             <td class="log-arrow">→</td>
-            <td class="log-new">{% if row.has_new %}{{ row.new }}{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td class="log-new">{% if row.has_new %}{{ row.new|striptags|truncate(240, True) }}{% else %}<span class="muted">—</span>{% endif %}</td>
           </tr>
         {% endfor %}
       </tbody>

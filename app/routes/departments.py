@@ -278,6 +278,13 @@ def edit_department(department_id):
             "department_type_id": dep.department_type_id,
             "size_label": dep.size_label,
             "parent_department_id": dep.parent_department_id,
+            "short_description": dep.short_description,
+            "full_description": dep.full_description,
+            "functions": dep.functions,
+            "email": dep.email,
+            "telegram": dep.telegram,
+            "chat_link": dep.chat_link,
+            "notes": dep.notes,
         }
 
         name = request.form.get("name", "").strip()
@@ -341,6 +348,13 @@ def edit_department(department_id):
                 "department_type_id": dep.department_type_id,
                 "size_label": dep.size_label,
                 "parent_department_id": dep.parent_department_id,
+                "short_description": dep.short_description,
+                "full_description": dep.full_description,
+                "functions": dep.functions,
+                "email": dep.email,
+                "telegram": dep.telegram,
+                "chat_link": dep.chat_link,
+                "notes": dep.notes,
             },
         )
         db.session.commit()

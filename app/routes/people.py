@@ -430,6 +430,11 @@ def edit_person(person_id):
             "department_id": person.department_id,
             "position": person.position,
             "grade": person.grade,
+            "manager_id": person.manager_id,
+            "email": person.email,
+            "telegram": person.telegram,
+            "phone": person.phone,
+            "responsibility_area": person.responsibility_area,
         }
 
         full_name = request.form.get("full_name", "").strip()
@@ -514,6 +519,11 @@ def edit_person(person_id):
                 "department_id": person.department_id,
                 "position": person.position,
                 "grade": person.grade,
+                "manager_id": person.manager_id,
+                "email": person.email,
+                "telegram": person.telegram,
+                "phone": person.phone,
+                "responsibility_area": person.responsibility_area,
             },
         )
         db.session.commit()
