@@ -3,8 +3,15 @@ import os
 
 def _normalize_db_url(url):
     # Render/Heroku/Railway provide postgres:// but SQLAlchemy needs postgresql://
-    if url and url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql://", 1)
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    # Pin the driver to psycopg2 explicitly. Newer SQLAlchemy versions default
+    # the bare postgresql:// dialect to psycopg (v3), which isn't installed, so
+    # we force psycopg2 regardless of the SQLAlchemy version pip resolves.
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
     return url
 
 
