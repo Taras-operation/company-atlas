@@ -124,6 +124,35 @@ def _resolve_parent_for_scoped_user(chosen_parent_id, dep=None):
     return dep.parent_department_id if dep is not None else current_user.department_id
 
 
+def _resolve_parent_for_scoped_create(chosen_parent_id):
+    """For a scoped user (TL / Operation) creating a NEW department:
+    allow a top-level department (no parent) or a parent inside their accessible
+    subtree. An out-of-scope parent choice is ignored (falls back to top-level).
+    The created department is then auto-attached to the creator so it stays in
+    their scope (see _attach_department_to_creator)."""
+    if not chosen_parent_id:
+        return None
+    accessible_ids = get_accessible_department_ids() or []
+    return chosen_parent_id if chosen_parent_id in accessible_ids else None
+
+
+def _attach_department_to_creator(dep):
+    """Auto-attach a freshly created department to a scoped creator, so an
+    Operation/TL keeps full access to departments they create (including new
+    top-level ones that aren't under any of their existing departments)."""
+    if is_global_admin():
+        return
+    from app.models.admin_user import AdminUserDepartment
+
+    exists = AdminUserDepartment.query.filter_by(
+        admin_user_id=current_user.id, department_id=dep.id
+    ).first()
+    if not exists:
+        db.session.add(
+            AdminUserDepartment(admin_user_id=current_user.id, department_id=dep.id)
+        )
+
+
 @departments_bp.route("/")
 @login_required
 def list_departments():
@@ -190,7 +219,7 @@ def create_department():
         size_label = request.form.get("size_label", "").strip()
         parent_department_id = request.form.get("parent_department_id", type=int)
         if not is_global_admin():
-            parent_department_id = _resolve_parent_for_scoped_user(parent_department_id)
+            parent_department_id = _resolve_parent_for_scoped_create(parent_department_id)
         email = request.form.get("email", "").strip()
         telegram = request.form.get("telegram", "").strip()
         chat_link = request.form.get("chat_link", "").strip()
@@ -230,6 +259,7 @@ def create_department():
         db.session.commit()
 
         _set_department_multi_values(dep, brand_ids, geo_ids, tag_ids, lead_ids)
+        _attach_department_to_creator(dep)
         db.session.commit()
 
         log_action(
