@@ -25,16 +25,17 @@
       </select>
     </div>
 
-    <div class="field">
-      <label>Відділ доступу</label>
-      <select name="department_id">
-        <option value="">— Без обмеження —</option>
+    <div class="field full">
+      <label>Відділи доступу</label>
+      {% set scoped_ids = user.scoped_department_ids %}
+      <select name="department_ids" class="js-multi-select" multiple data-placeholder="Оберіть один або кілька відділів">
         {% for item in departments %}
-          <option value="{{ item.id }}" {% if user.department_id == item.id %}selected{% endif %}>
+          <option value="{{ item.id }}" {% if item.id in scoped_ids %}selected{% endif %}>
             {{ item.name }}
           </option>
         {% endfor %}
       </select>
+      <span class="muted">Для ролей TL / Operation. Можна прикріпити кілька відділів — доступ пошириться на кожен з них та їхні підвідділи. Порожньо = без доступу до відділів.</span>
     </div>
 
     <div class="field">

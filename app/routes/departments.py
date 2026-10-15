@@ -177,7 +177,7 @@ def list_departments():
 @departments_bp.route("/create", methods=["GET", "POST"])
 @login_required
 def create_department():
-    if not is_global_admin() and not current_user.department_id:
+    if not is_global_admin() and not current_user.scoped_department_ids:
         flash("Немає доступу", "danger")
         return redirect(url_for("dashboard.index"))
 

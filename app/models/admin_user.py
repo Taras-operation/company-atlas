@@ -29,12 +29,49 @@ class AdminUser(UserMixin, db.Model):
         foreign_keys=[department_id],
     )
 
+    # Additional departments a scoped role (e.g. Operation) is attached to.
+    # The effective scope is the union of `department_id` and every linked
+    # department, each expanded down its sub-department tree.
+    scoped_department_links = db.relationship(
+        "AdminUserDepartment",
+        back_populates="admin_user",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def scoped_department_ids(self):
+        """All root department ids this user is scoped to (primary + extra)."""
+        ids = set()
+        if self.department_id:
+            ids.add(self.department_id)
+        for link in self.scoped_department_links:
+            if link.department_id:
+                ids.add(link.department_id)
+        return ids
+
     @property
     def is_active(self):
         return self.is_active_user
 
     def get_id(self):
         return str(self.id)
+
+
+class AdminUserDepartment(db.Model):
+    """Many-to-many: a scoped admin user attached to several departments."""
+
+    __tablename__ = "admin_user_departments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    admin_user_id = db.Column(db.Integer, db.ForeignKey("admin_users.id", ondelete="CASCADE"), nullable=False)
+    department_id = db.Column(db.Integer, db.ForeignKey("departments.id", ondelete="CASCADE"), nullable=False)
+
+    admin_user = db.relationship("AdminUser", back_populates="scoped_department_links")
+    department = db.relationship("Department")
+
+    __table_args__ = (
+        db.UniqueConstraint("admin_user_id", "department_id", name="uq_admin_user_department"),
+    )
 
 
 # VisualizationUser model

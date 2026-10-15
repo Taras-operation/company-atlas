@@ -30,7 +30,7 @@
         Налаштування
       </a>
     {% endif %}
-    {% if current_user.admin_role in ['super_admin', 'admin'] or current_user.department_id %}
+    {% if current_user.admin_role in ['super_admin', 'admin'] or current_user.scoped_department_ids %}
       <a href="{{ url_for('audit.list_audit') }}"
          class="{{ 'active' if bp == 'audit' else '' }}">
         Історія

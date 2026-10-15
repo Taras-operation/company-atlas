@@ -241,12 +241,7 @@ def list_audit():
             flash("Немає доступу", "danger")
             return redirect(url_for("dashboard.index"))
 
-        actor_ids = {
-            row.id
-            for row in AdminUser.query
-            .filter(AdminUser.department_id.in_(accessible))
-            .all()
-        }
+        actor_ids = _actor_ids_in_departments(accessible)
         actor_ids.add(current_user.id)
         query = query.filter(AuditLog.user_id.in_(actor_ids))
 
@@ -266,9 +261,26 @@ def list_audit():
     )
 
 
+def _actor_ids_in_departments(accessible):
+    """Admin-user ids attached to any of `accessible` — via the primary
+    department_id or the extra department links (multi-department scope)."""
+    from app.models.admin_user import AdminUserDepartment
+
+    ids = {
+        row.id
+        for row in AdminUser.query.filter(AdminUser.department_id.in_(accessible)).all()
+    }
+    ids.update(
+        link.admin_user_id
+        for link in AdminUserDepartment.query.filter(
+            AdminUserDepartment.department_id.in_(accessible)
+        ).all()
+    )
+    return ids
+
+
 def _accessible_actor_ids():
     """Actor ids a scoped viewer may see (their department subtree). None = all."""
-    from app.models import AdminUser
     from app.utils.access import get_accessible_department_ids, is_global_admin
 
     if is_global_admin():
@@ -276,7 +288,7 @@ def _accessible_actor_ids():
     accessible = get_accessible_department_ids()
     if not accessible:
         return set()
-    ids = {row.id for row in AdminUser.query.filter(AdminUser.department_id.in_(accessible)).all()}
+    ids = _actor_ids_in_departments(accessible)
     ids.add(current_user.id)
     return ids
 

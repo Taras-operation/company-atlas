@@ -31,14 +31,14 @@
       </select>
     </div>
 
-    <div class="field">
-      <label>Відділ доступу</label>
-      <select name="department_id">
-        <option value="">— Без обмеження —</option>
+    <div class="field full">
+      <label>Відділи доступу</label>
+      <select name="department_ids" class="js-multi-select" multiple data-placeholder="Оберіть один або кілька відділів">
         {% for item in departments %}
           <option value="{{ item.id }}">{{ item.name }}</option>
         {% endfor %}
       </select>
+      <span class="muted">Для ролей TL / Operation. Можна прикріпити кілька відділів — доступ пошириться на кожен з них та їхні підвідділи. Порожньо = без доступу до відділів.</span>
     </div>
 
     <div class="field full">

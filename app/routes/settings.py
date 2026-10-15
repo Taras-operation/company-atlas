@@ -23,6 +23,19 @@ def _admin_only():
     return current_user.admin_role in ["super_admin", "admin"]
 
 
+def _sync_admin_user_departments(user, department_ids):
+    """Replace a user's extra department attachments (multi-department scope)."""
+    from app.models.admin_user import AdminUserDepartment
+
+    AdminUserDepartment.query.filter_by(admin_user_id=user.id).delete()
+    seen = set()
+    for dep_id in department_ids:
+        if not dep_id or dep_id in seen:
+            continue
+        seen.add(dep_id)
+        db.session.add(AdminUserDepartment(admin_user_id=user.id, department_id=dep_id))
+
+
 @settings_bp.before_request
 @login_required
 def require_login():
@@ -464,7 +477,8 @@ def create_admin_user():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
         admin_role = request.form.get("admin_role", "").strip()
-        department_id = request.form.get("department_id", type=int)
+        department_ids = request.form.getlist("department_ids", type=int)
+        department_id = department_ids[0] if department_ids else None
         person_id = request.form.get("person_id", type=int)
         is_active_user = request.form.get("is_active_user") == "on"
 
@@ -493,6 +507,9 @@ def create_admin_user():
         )
 
         db.session.add(user)
+        db.session.commit()
+
+        _sync_admin_user_departments(user, department_ids)
         db.session.commit()
 
         log_action(
@@ -532,7 +549,8 @@ def edit_admin_user(user_id):
 
         username = request.form.get("username", "").strip()
         admin_role = request.form.get("admin_role", "").strip()
-        department_id = request.form.get("department_id", type=int)
+        department_ids = request.form.getlist("department_ids", type=int)
+        department_id = department_ids[0] if department_ids else None
         person_id = request.form.get("person_id", type=int)
         is_active_user = request.form.get("is_active_user") == "on"
 
@@ -564,6 +582,8 @@ def edit_admin_user(user_id):
         user.department_id = department_id or None
         user.person_id = person_id or None
         user.is_active_user = is_active_user
+
+        _sync_admin_user_departments(user, department_ids)
 
         db.session.commit()
 

@@ -62,81 +62,60 @@
     <h2>Видимість</h2>
     <p class="muted" style="margin-top:0;">Що саме ця людина бачить у візуалізації / картках відділів (налаштовується в «Редагувати»).</p>
 
-    {% macro yn(v) %}{% if v %}<span style="color:#166534;font-weight:700;">✓</span>{% else %}<span style="color:#991b1b;font-weight:700;">✕</span>{% endif %}{% endmacro %}
     {% set scope_labels = {"all": "Всі", "selected": "Вибірково", "none": "Нічого"} %}
-    {% set card_labels = {"full": "Повний доступ", "limited": "Частково обмежений доступ", "minimal": "Мінімальний доступ", "none": "Закритий доступ"} %}
+    {% set card_labels = {"full": "Повний доступ", "limited": "Частково обмежений доступ", "none": "Закритий доступ"} %}
+    {% set open_rows = visibility_rows | selectattr(1) | list %}
+    {% set closed_rows = visibility_rows | rejectattr(1) | list %}
 
     {% if person.department_card_access == "full" %}
       <div style="background:#dcfce7;color:#166534;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
-        <strong>Повний доступ:</strong> у картці відділу відкрито все, незалежно від галочок нижче.
+        <strong>Повний доступ:</strong> у картці відділу відкрито все.
       </div>
     {% elif person.department_card_access == "none" %}
       <div style="background:#fee2e2;color:#991b1b;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
-        <strong>Закритий доступ:</strong> у картці видно лише короткий і повний опис, решту приховано (галочки нижче не застосовуються).
+        <strong>Закритий доступ:</strong> у картці видно лише короткий і повний опис, решту приховано.
       </div>
     {% else %}
       <div style="background:#eef2ff;color:#3730a3;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
-        <strong>Частково обмежений доступ:</strong> у картці видно саме те, що відмічено галочками нижче.
+        <strong>Частково обмежений доступ:</strong> у картці видно саме те, що відмічено нижче.
       </div>
     {% endif %}
 
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <div>
-        <div style="font-weight:700;margin-bottom:4px;">Карта</div>
-        <div>{{ yn(person.map_access) }} Бачить загальну карту / візуалізацію</div>
-        <div>{{ yn(person.map_show_connections) }} Бачить зв’язки між відділами</div>
-      </div>
-
-      <div>
-        <div style="font-weight:700;margin-bottom:4px;">Обсяг</div>
-        <div>Бренди: <strong>{{ scope_labels.get(person.brand_scope, person.brand_scope) }}</strong>{% if person.brand_scope == 'selected' %} <span class="muted">(приховано: {{ person.visibility_brand_links|length }})</span>{% endif %}</div>
-        <div>GEO: <strong>{{ scope_labels.get(person.geo_scope, person.geo_scope) }}</strong>{% if person.geo_scope == 'selected' %} <span class="muted">(приховано: {{ person.visibility_geo_links|length }})</span>{% endif %}</div>
-        <div>Відділи: <strong>{{ scope_labels.get(person.department_scope, person.department_scope) }}</strong>{% if person.department_scope == 'selected' %} <span class="muted">(приховано: {{ person.visibility_department_links|length }})</span>{% endif %}</div>
-        <div>Доступ до картки відділу: <strong>{{ card_labels.get(person.department_card_access, person.department_card_access) }}</strong></div>
-      </div>
-
-      <div>
-        <div style="font-weight:700;margin-bottom:4px;">Контент картки відділу</div>
-        <div>{{ yn(person.card_show_short_description) }} Короткий опис</div>
-        <div>{{ yn(person.card_show_full_description) }} Повний опис і функціонал</div>
-        <div>{{ yn(person.card_show_relations) }} Зв’язані відділи</div>
-      </div>
-
-      <div>
-        <div style="font-weight:700;margin-bottom:4px;">Команда відділу</div>
-        <div>{{ yn(person.show_department_people_count) }} Кількість людей</div>
-        <div>{{ yn(person.show_department_leads) }} Керівники / TL / Head</div>
-        <div>{{ yn(person.show_department_lead_positions) }} Посади керівників</div>
-        <div>{{ yn(person.show_department_people) }} Люди відділу</div>
-        <div>{{ yn(person.show_department_people_positions) }} Посади людей</div>
-        <div>{{ yn(person.show_department_people_responsibility) }} Зона відповідальності людей</div>
-      </div>
-
-      <div>
-        <div style="font-weight:700;margin-bottom:4px;">Контакти відділу</div>
-        <div>{{ yn(person.show_department_email) }} Email відділу</div>
-        <div>{{ yn(person.show_department_telegram) }} Telegram відділу</div>
-        <div>{{ yn(person.show_department_chat_link) }} Chat link відділу</div>
-      </div>
-
-      <div>
-        <div style="font-weight:700;margin-bottom:4px;">Контакти керівників / TL</div>
-        <div>{{ yn(person.show_lead_contacts) }} Бачить контакти керівників</div>
-        <div>{{ yn(person.show_lead_email) }} Email · {{ yn(person.show_lead_telegram) }} Telegram · {{ yn(person.show_lead_reddy) }} Reddy</div>
-      </div>
-
-      <div>
-        <div style="font-weight:700;margin-bottom:4px;">Контакти людей відділу</div>
-        <div>{{ yn(person.show_people_contacts) }} Бачить контакти людей</div>
-        <div>{{ yn(person.show_people_email) }} Email · {{ yn(person.show_people_telegram) }} Telegram · {{ yn(person.show_people_reddy) }} Reddy</div>
-      </div>
+    <div style="font-size:13px;line-height:1.7;margin-bottom:8px;">
+      <div>Бренди: <strong>{{ scope_labels.get(person.brand_scope, person.brand_scope) }}</strong>{% if person.brand_scope == 'selected' %} <span class="muted">(приховано: {{ person.visibility_brand_links|length }})</span>{% endif %}
+        · GEO: <strong>{{ scope_labels.get(person.geo_scope, person.geo_scope) }}</strong>{% if person.geo_scope == 'selected' %} <span class="muted">(приховано: {{ person.visibility_geo_links|length }})</span>{% endif %}
+        · Відділи: <strong>{{ scope_labels.get(person.department_scope, person.department_scope) }}</strong>{% if person.department_scope == 'selected' %} <span class="muted">(приховано: {{ person.visibility_department_links|length }})</span>{% endif %}</div>
     </div>
+
+    <details class="vis-details">
+      <summary style="cursor:pointer;font-weight:700;color:#3730a3;padding:6px 0;">Розгорнути деталі доступу ({{ open_rows|length }} відкрито / {{ closed_rows|length }} закрито)</summary>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px;">
+        <div>
+          <div style="font-weight:700;color:#166534;margin-bottom:6px;">✓ Відкрито</div>
+          {% for label, _ in open_rows %}
+            <div style="font-size:13px;line-height:1.7;">{{ label }}</div>
+          {% else %}
+            <div class="muted" style="font-size:13px;">—</div>
+          {% endfor %}
+        </div>
+        <div>
+          <div style="font-weight:700;color:#991b1b;margin-bottom:6px;">✕ Закрито</div>
+          {% for label, _ in closed_rows %}
+            <div style="font-size:13px;line-height:1.7;color:#64748b;">{{ label }}</div>
+          {% else %}
+            <div class="muted" style="font-size:13px;">—</div>
+          {% endfor %}
+        </div>
+      </div>
+    </details>
   </div>
 
   <div class="card">
     <h2>GEO / міста / ринки</h2>
     {% if person.works_all_geos %}
-      <p><strong>Всі ГЕО</strong> <span class="muted">(працює з усіма)</span></p>
+      <button type="button" class="all-chip" onclick="openListModal('Всі ГЕО', window.__ALL_GEO__)">
+        🌍 Всі ГЕО <span class="muted">({{ all_geo_names|length }}) ▸</span>
+      </button>
     {% else %}
       <ul>
         {% for item in person.geo_location_links %}
@@ -219,7 +198,9 @@
   <div class="card">
     <h2>Бренди</h2>
     {% if person.works_all_brands %}
-      <p><strong>Всі бренди</strong> <span class="muted">(працює з усіма)</span></p>
+      <button type="button" class="all-chip" onclick="openListModal('Всі бренди', window.__ALL_BRANDS__)">
+        🏷 Всі бренди <span class="muted">({{ all_brand_names|length }}) ▸</span>
+      </button>
     {% else %}
       <ul>
         {% for item in person.brand_links %}
@@ -238,4 +219,63 @@
     </div>
   </div>
 </div>
+
+<!-- List modal for "Всі ГЕО / Всі бренди" -->
+<div id="list-modal" class="list-modal-overlay" style="display:none;" onclick="closeListModal(event)">
+  <div class="list-modal" onclick="event.stopPropagation();">
+    <div class="list-modal-head">
+      <strong id="list-modal-title"></strong>
+      <button type="button" class="btn btn-secondary" onclick="closeListModal()">✕</button>
+    </div>
+    <div id="list-modal-body" class="list-modal-body"></div>
+  </div>
+</div>
+
+<style>
+  .all-chip {
+    background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; border-radius:10px;
+    padding:8px 14px; font-weight:700; cursor:pointer; font-size:14px;
+  }
+  .all-chip:hover { background:#e0e7ff; }
+  .list-modal-overlay {
+    position:fixed; inset:0; z-index:1000; background:rgba(2,6,23,.55);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .list-modal {
+    width:min(560px,96vw); max-height:80vh; display:flex; flex-direction:column;
+    background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(2,6,23,.4);
+  }
+  .list-modal-head {
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    padding:16px 20px; border-bottom:1px solid #e5e7eb; flex-shrink:0;
+  }
+  .list-modal-head strong { font-size:16px; }
+  .list-modal-body {
+    padding:16px 20px; overflow-y:auto; display:flex; flex-wrap:wrap; gap:8px;
+  }
+  .list-modal-body span {
+    background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px;
+    padding:5px 10px; font-size:13px; font-weight:600; color:#0f172a;
+  }
+</style>
+
+<script>
+  window.__ALL_GEO__ = {{ all_geo_names|tojson }};
+  window.__ALL_BRANDS__ = {{ all_brand_names|tojson }};
+  function openListModal(title, items) {
+    document.getElementById('list-modal-title').textContent = title + ' (' + (items ? items.length : 0) + ')';
+    var body = document.getElementById('list-modal-body');
+    body.innerHTML = '';
+    (items || []).forEach(function (name) {
+      var s = document.createElement('span');
+      s.textContent = name;
+      body.appendChild(s);
+    });
+    document.getElementById('list-modal').style.display = 'flex';
+  }
+  function closeListModal(e) {
+    if (e && e.target && e.target.id && e.target.id !== 'list-modal') return;
+    document.getElementById('list-modal').style.display = 'none';
+  }
+</script>
 {% endblock %}

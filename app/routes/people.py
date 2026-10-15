@@ -171,6 +171,51 @@ def _sync_person_links(person, role_ids, geo_location_ids, tag_ids, brand_ids=()
         db.session.add(PersonBrand(person_id=person.id, brand_id=brand_id))
 
 
+def _effective_visibility_rows(person):
+    """Effective per-item visibility for the detail page, honouring the card
+    access level (full = everything, none = descriptions only, limited = the
+    stored checkboxes). Mirrors _apply_card_access_level in the viz service.
+
+    Returns a list of (label, is_open) tuples.
+    """
+    level = person.department_card_access
+
+    def card(raw, is_description=False):
+        if level == "full":
+            return True
+        if level == "none":
+            return bool(is_description)
+        return bool(raw)
+
+    rows = [
+        # Map axis — not affected by the card level.
+        ("Бачить загальну карту", bool(person.map_access)),
+        ("Бачить зв'язки між відділами", bool(person.map_show_connections)),
+        # Card content — affected by the level.
+        ("Короткий опис відділу", card(person.card_show_short_description, is_description=True)),
+        ("Повний опис і функціонал", card(person.card_show_full_description, is_description=True)),
+        ("Зв'язані відділи", card(person.card_show_relations)),
+        ("Кількість людей", card(person.show_department_people_count)),
+        ("Керівники / TL / Head", card(person.show_department_leads)),
+        ("Посади керівників", card(person.show_department_lead_positions)),
+        ("Люди відділу", card(person.show_department_people)),
+        ("Посади людей", card(person.show_department_people_positions)),
+        ("Зона відповідальності людей", card(person.show_department_people_responsibility)),
+        ("Email відділу", card(person.show_department_email)),
+        ("Telegram відділу", card(person.show_department_telegram)),
+        ("Chat link відділу", card(person.show_department_chat_link)),
+        ("Контакти керівників", card(person.show_lead_contacts)),
+        ("Email керівників", card(person.show_lead_email)),
+        ("Telegram керівників", card(person.show_lead_telegram)),
+        ("Reddy керівників", card(person.show_lead_reddy)),
+        ("Контакти людей", card(person.show_people_contacts)),
+        ("Email людей", card(person.show_people_email)),
+        ("Telegram людей", card(person.show_people_telegram)),
+        ("Reddy людей", card(person.show_people_reddy)),
+    ]
+    return rows
+
+
 def _apply_works_all_flags(person):
     """Read the 'works with all GEO / all brands' checkboxes.
 
@@ -429,7 +474,25 @@ def detail_person(person_id):
     if not _can_access_person(person):
         flash("Немає доступу до цієї людини", "danger")
         return redirect(url_for("people.list_people"))
-    return render_template("people/detail.html", person=person)
+
+    visibility_rows = _effective_visibility_rows(person)
+
+    # Catalogs for the "Всі ГЕО / Всі бренди" modals (shown when the person
+    # works with everything, so there are no explicit links to list).
+    all_geo_names = [
+        f"{gl.geo.name} — {gl.name}" if gl.geo else gl.name
+        for gl in GeoLocation.query.join(GeoLocation.geo, isouter=True)
+        .order_by(GeoLocation.name.asc()).all()
+    ]
+    all_brand_names = [b.name for b in Brand.query.order_by(Brand.name.asc()).all()]
+
+    return render_template(
+        "people/detail.html",
+        person=person,
+        visibility_rows=visibility_rows,
+        all_geo_names=all_geo_names,
+        all_brand_names=all_brand_names,
+    )
 
 
 @people_bp.route("/<int:person_id>/edit", methods=["GET", "POST"])

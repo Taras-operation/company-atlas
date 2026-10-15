@@ -11,16 +11,25 @@ def is_tl_user():
     return current_user.admin_role in ["head_tl", "tl", "operation"]
 
 
+def _scope_root_ids(user):
+    """Root departments a scoped user is attached to (primary + extra)."""
+    getter = getattr(user, "scoped_department_ids", None)
+    if getter is not None:
+        return set(getter)
+    # Fallback for user objects without the relationship loaded.
+    return {user.department_id} if getattr(user, "department_id", None) else set()
+
+
 def get_accessible_department_ids():
     if is_global_admin():
         return None
 
-    if not current_user.department_id:
+    roots = _scope_root_ids(current_user)
+    if not roots:
         return []
 
-    root_id = current_user.department_id
-    ids = {root_id}
-    queue = [root_id]
+    ids = set(roots)
+    queue = list(roots)
 
     while queue:
         parent_id = queue.pop(0)
@@ -57,5 +66,5 @@ def can_approve_visibility_requests():
 
 def can_view_audit():
     # Global admins see everything; scoped roles (head_tl / tl / operation) see the
-    # audit trail for their own department subtree.
-    return is_global_admin() or bool(getattr(current_user, "department_id", None))
+    # audit trail for their own department subtree(s).
+    return is_global_admin() or bool(_scope_root_ids(current_user))
