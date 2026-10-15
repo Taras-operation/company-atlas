@@ -184,13 +184,66 @@ def _viewer_relation_ids(viewer_user, collection_aliases, id_aliases):
     return ids
 
 
+# Card-content permission keys gated by the department-card access level.
+# (Scope keys brand_ids/geo_ids/department_ids and the global-map keys are a
+# separate axis and are NOT touched by the level override.)
+_CARD_CONTENT_KEYS = (
+    "can_view_relations",
+    "can_view_short_description",
+    "can_view_full_description",
+    "can_view_related_departments",
+    "can_view_department_email",
+    "can_view_department_telegram",
+    "can_view_department_chat_link",
+    "can_view_department_notes",
+    "can_view_people_count",
+    "can_view_leaders",
+    "can_view_leader_positions",
+    "can_view_leader_responsibility",
+    "can_view_leader_contacts",
+    "can_view_leader_email",
+    "can_view_leader_telegram",
+    "can_view_leader_reddy",
+    "can_view_people",
+    "can_view_people_positions",
+    "can_view_people_responsibility",
+    "can_view_people_contacts",
+    "can_view_people_email",
+    "can_view_people_telegram",
+    "can_view_people_reddy",
+)
+
+
+def _apply_card_access_level(access):
+    """Make the department-card access level the primary control.
+
+    full    -> opens everything in the card (individual checkboxes ignored)
+    none    -> opens only the short + full description, nothing else
+    limited -> keeps the per-checkbox configuration as-is
+
+    Applied at read time so existing records behave correctly without a re-save.
+    """
+    level = access.get("card_access")
+
+    if level == "full":
+        for key in _CARD_CONTENT_KEYS:
+            access[key] = True
+    elif level == "none":
+        for key in _CARD_CONTENT_KEYS:
+            access[key] = False
+        access["can_view_short_description"] = True
+        access["can_view_full_description"] = True
+
+    return access
+
+
 def _build_viewer_access(viewer_user):
     if viewer_user is None:
         return None
 
     access_source = _viewer_access_source(viewer_user)
 
-    return {
+    return _apply_card_access_level({
         "card_access": _visibility_value(
             access_source,
             ["get_department_card_access", "resolve_department_card_access"],
@@ -355,7 +408,7 @@ def _build_viewer_access(viewer_user):
             ["visibility_department_links"],
             ["department_id", "id"],
         )),
-    }
+    })
 
 
 def _sanitize_user_payload(user_payload, viewer_access, scope):
@@ -600,7 +653,8 @@ def _serialize_tag_link(link):
     }
 
 
-def _serialize_department_station(department, public_view=False, viewer_access=None):
+def _serialize_department_station(department, public_view=False, viewer_access=None,
+                                  total_brands=None, total_geos=None):
     department_type = department.department_type
 
     leader_links = _get_first_existing_collection(
@@ -781,6 +835,9 @@ def _serialize_department_station(department, public_view=False, viewer_access=N
             for link in department.brand_links
             if link.brand
         ],
+        # True when the department covers every brand that exists — the card then
+        # shows a single "Всі бренди" chip instead of the full list.
+        "brands_all": bool(total_brands) and len(department.brand_links) >= total_brands,
         "geo_ids": [link.geo_id for link in department.geo_links],
         "geo_names": [link.geo.name for link in department.geo_links if link.geo],
         "geos": [
@@ -788,6 +845,7 @@ def _serialize_department_station(department, public_view=False, viewer_access=N
             for link in department.geo_links
             if link.geo
         ],
+        "geos_all": bool(total_geos) and len(department.geo_links) >= total_geos,
         "tag_ids": [link.tag_id for link in tag_links if getattr(link, "tag_id", None)],
         "tags": [item for item in (_serialize_tag_link(link) for link in tag_links) if item.get("name")],
         "has_children": bool(children),
@@ -928,6 +986,10 @@ def build_visualization_map_payload(brand_id=None, geo_id=None, public_view=Fals
         ]
     department_ids = {department.id for department in departments}
 
+    # Totals used to collapse "every brand / every geo" into a single chip.
+    total_brands = Brand.query.count()
+    total_geos = Geo.query.count()
+
     department_types = DepartmentType.query.order_by(DepartmentType.name.asc()).all()
     type_index = {department_type.id: index for index, department_type in enumerate(department_types)}
 
@@ -943,7 +1005,7 @@ def build_visualization_map_payload(brand_id=None, geo_id=None, public_view=Fals
         if stations:
             lines.append({
                 **_serialize_department_type(department_type, type_index.get(department_type.id, 0)),
-                "stations": [_serialize_department_station(department, public_view=public_view, viewer_access=viewer_access) for department in stations],
+                "stations": [_serialize_department_station(department, public_view=public_view, viewer_access=viewer_access, total_brands=total_brands, total_geos=total_geos) for department in stations],
             })
 
     no_type_stations = [department for department in departments if not department.department_type_id]
@@ -954,7 +1016,7 @@ def build_visualization_map_payload(brand_id=None, geo_id=None, public_view=Fals
             "name": "Без типу",
             "description": None,
             "color": "#64748B",
-            "stations": [_serialize_department_station(department, public_view=public_view, viewer_access=viewer_access) for department in no_type_stations],
+            "stations": [_serialize_department_station(department, public_view=public_view, viewer_access=viewer_access, total_brands=total_brands, total_geos=total_geos) for department in no_type_stations],
         })
 
     relations = []

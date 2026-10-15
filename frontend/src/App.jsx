@@ -6,6 +6,35 @@ import { themed } from './theme'
 import MetroRefMap from './components/MetroMap/MetroRefMap'
 import OrbitMap from './components/OrbitMap/OrbitMap'
 
+// Renders brand/geo chips, collapsing "covers everything" into one clickable
+// "Всі …" chip that opens a modal with the full list. tone: 'brand' | 'geo'.
+function ChipGroup({ names = [], allFlag = false, allLabel, title, tone, size = 'md', T, lightMode, onOpenAll }) {
+  const palette = tone === 'geo'
+    ? { border: 'rgba(34,197,94,.3)', bg: (lightMode ? '#DCFCE7' : 'rgba(34,197,94,.1)'), color: (lightMode ? '#15803D' : '#86EFAC') }
+    : { border: 'rgba(59,130,246,.3)', bg: (lightMode ? '#E4EDFD' : 'rgba(59,130,246,.1)'), color: (lightMode ? '#1D4ED8' : '#93C5FD') }
+  const pad = size === 'sm' ? '4px 9px' : '5px 10px'
+  const fs = size === 'sm' ? 11 : 12
+  const chipStyle = { borderRadius: 8, padding: pad, fontSize: fs, fontWeight: 700, border: `1px solid ${palette.border}`, background: palette.bg, color: palette.color }
+
+  if (allFlag) {
+    return (
+      <span
+        onClick={() => onOpenAll && onOpenAll({ title, items: names, tone })}
+        style={{ ...chipStyle, cursor: names.length ? 'pointer' : 'default', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+        title={names.length ? 'Показати весь список' : undefined}
+      >
+        {allLabel}{names.length > 0 && <span style={{ opacity: .7 }}>({names.length}) ▸</span>}
+      </span>
+    )
+  }
+
+  if (!names.length) {
+    return <span style={{ color: T.textFaint, fontSize: 13, fontStyle: 'italic' }}>Не вказано</span>
+  }
+
+  return <>{names.map((n) => <span key={n} style={chipStyle}>{n}</span>)}</>
+}
+
 // Catches render errors in the map so a crash shows a readable message instead of a blank screen.
 class MapErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null } }
@@ -480,6 +509,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isFullCardOpen, setIsFullCardOpen] = useState(false)
   const [selectedPerson, setSelectedPerson] = useState(null)
+  const [chipsModal, setChipsModal] = useState(null) // { title, items: string[], tone } | null
   const [isDepartmentInfoExpanded, setIsDepartmentInfoExpanded] = useState(false)
   const [isRelationsPanelOpen, setIsRelationsPanelOpen] = useState(false)
   const [expandedRelationGroups, setExpandedRelationGroups] = useState({})
@@ -2065,16 +2095,16 @@ function App() {
                   )}
 
                   {/* Brands / GEO */}
-                  {((selectedDepartment.brand_names?.length > 0) || (selectedDepartment.geo_names?.length > 0)) && (
+                  {((selectedDepartment.brand_names?.length > 0) || (selectedDepartment.geo_names?.length > 0) || selectedDepartment.brands_all || selectedDepartment.geos_all) && (
                     <section style={{ borderRadius: 14, border: '1px solid rgba(30,41,59,0.9)', background: T.cardBg, boxShadow: T.shadowSm, padding: 14 }}>
                       <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.textMuted, marginBottom: 10, fontWeight: 700 }}>Бренди / ГЕО</div>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {selectedDepartment.brand_names?.map((b) => (
-                          <span key={b} style={{ borderRadius: 8, padding: '4px 9px', fontSize: 11, fontWeight: 700, border: '1px solid rgba(59,130,246,.3)', background: (lightMode ? '#E4EDFD' : 'rgba(59,130,246,.1)'), color: (lightMode ? '#1D4ED8' : '#93C5FD') }}>{b}</span>
-                        ))}
-                        {selectedDepartment.geo_names?.map((g) => (
-                          <span key={g} style={{ borderRadius: 8, padding: '4px 9px', fontSize: 11, fontWeight: 700, border: '1px solid rgba(34,197,94,.3)', background: (lightMode ? '#DCFCE7' : 'rgba(34,197,94,.1)'), color: (lightMode ? '#15803D' : '#86EFAC') }}>{g}</span>
-                        ))}
+                        {(selectedDepartment.brand_names?.length > 0 || selectedDepartment.brands_all) && (
+                          <ChipGroup names={selectedDepartment.brand_names} allFlag={selectedDepartment.brands_all} allLabel="Всі бренди" title="Бренди" tone="brand" size="sm" T={T} lightMode={lightMode} onOpenAll={setChipsModal} />
+                        )}
+                        {(selectedDepartment.geo_names?.length > 0 || selectedDepartment.geos_all) && (
+                          <ChipGroup names={selectedDepartment.geo_names} allFlag={selectedDepartment.geos_all} allLabel="Всі ГЕО" title="ГЕО" tone="geo" size="sm" T={T} lightMode={lightMode} onOpenAll={setChipsModal} />
+                        )}
                       </div>
                     </section>
                   )}
@@ -2414,22 +2444,14 @@ function App() {
                     <div>
                       <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 7, fontWeight: 600 }}>Бренди</div>
                       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                        {selectedDepartment.brand_names?.length > 0 ? selectedDepartment.brand_names.map((brand) => (
-                          <span key={brand} style={{ borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(59,130,246,.3)', background: (lightMode ? '#E4EDFD' : 'rgba(59,130,246,.1)'), color: (lightMode ? '#1D4ED8' : '#93C5FD') }}>
-                            {brand}
-                          </span>
-                        )) : <span style={{ color: T.textFaint, fontSize: 13, fontStyle: 'italic' }}>Не вказано</span>}
+                        <ChipGroup names={selectedDepartment.brand_names} allFlag={selectedDepartment.brands_all} allLabel="Всі бренди" title="Бренди" tone="brand" T={T} lightMode={lightMode} onOpenAll={setChipsModal} />
                       </div>
                     </div>
 
                     <div>
                       <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 7, fontWeight: 600 }}>ГЕО</div>
                       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                        {selectedDepartment.geo_names?.length > 0 ? selectedDepartment.geo_names.map((geo) => (
-                          <span key={geo} style={{ borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, border: '1px solid rgba(34,197,94,.3)', background: (lightMode ? '#DCFCE7' : 'rgba(34,197,94,.1)'), color: (lightMode ? '#15803D' : '#86EFAC') }}>
-                            {geo}
-                          </span>
-                        )) : <span style={{ color: T.textFaint, fontSize: 13, fontStyle: 'italic' }}>Не вказано</span>}
+                        <ChipGroup names={selectedDepartment.geo_names} allFlag={selectedDepartment.geos_all} allLabel="Всі ГЕО" title="ГЕО" tone="geo" T={T} lightMode={lightMode} onOpenAll={setChipsModal} />
                       </div>
                     </div>
                   </div>
@@ -2786,6 +2808,32 @@ function App() {
                   Зв'язки для відділу ще не додані.
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {chipsModal && (
+        <div
+          onClick={() => setChipsModal(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(2,6,23,.6)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 'min(560px, 96vw)', maxHeight: '80vh', display: 'flex', flexDirection: 'column', borderRadius: 18, border: `1px solid ${T.border}`, background: T.panelBg, boxShadow: '0 20px 60px rgba(2,6,23,.5)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: `1px solid ${T.borderSoft}`, flexShrink: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{chipsModal.title} <span style={{ color: T.textMuted, fontWeight: 600 }}>({chipsModal.items?.length || 0})</span></div>
+              <button onClick={() => setChipsModal(null)}
+                style={{ borderRadius: 8, border: `1px solid ${T.border}`, background: T.cardBg, color: T.text, fontSize: 13, fontWeight: 700, padding: '6px 12px', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ padding: 20, overflowY: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {chipsModal.items?.length ? chipsModal.items.map((n) => {
+                const pal = chipsModal.tone === 'geo'
+                  ? { border: 'rgba(34,197,94,.3)', bg: (lightMode ? '#DCFCE7' : 'rgba(34,197,94,.1)'), color: (lightMode ? '#15803D' : '#86EFAC') }
+                  : { border: 'rgba(59,130,246,.3)', bg: (lightMode ? '#E4EDFD' : 'rgba(59,130,246,.1)'), color: (lightMode ? '#1D4ED8' : '#93C5FD') }
+                return <span key={n} style={{ borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, border: `1px solid ${pal.border}`, background: pal.bg, color: pal.color }}>{n}</span>
+              }) : <span style={{ color: T.textFaint, fontStyle: 'italic' }}>Список порожній</span>}
             </div>
           </div>
         </div>

@@ -22,6 +22,12 @@ class Person(db.Model):
     phone = db.Column(db.String(100))
     notes = db.Column(db.Text)
 
+    # "Works with all GEO / all brands" — explicit flags so a person covering
+    # everything is shown as a single "Всі ГЕО / Всі бренди" chip instead of
+    # listing every item.
+    works_all_geos = db.Column(db.Boolean, default=False, nullable=False)
+    works_all_brands = db.Column(db.Boolean, default=False, nullable=False)
+
     # Visibility: map
     map_access = db.Column(db.Boolean, default=True, nullable=False)
     map_show_connections = db.Column(db.Boolean, default=True, nullable=False)

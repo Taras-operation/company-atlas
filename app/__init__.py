@@ -157,6 +157,8 @@ def create_app() -> Flask:
                 "ALTER TABLE department_types ADD COLUMN IF NOT EXISTS color VARCHAR(20)",
                 "ALTER TABLE department_types ADD COLUMN IF NOT EXISTS color_mode VARCHAR(10) DEFAULT 'single'",
                 "ALTER TABLE geos ADD COLUMN IF NOT EXISTS color VARCHAR(20)",
+                "ALTER TABLE people ADD COLUMN IF NOT EXISTS works_all_geos BOOLEAN NOT NULL DEFAULT FALSE",
+                "ALTER TABLE people ADD COLUMN IF NOT EXISTS works_all_brands BOOLEAN NOT NULL DEFAULT FALSE",
             ]
             with engine.begin() as conn:
                 for stmt in statements:

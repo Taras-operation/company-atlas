@@ -171,6 +171,21 @@ def _sync_person_links(person, role_ids, geo_location_ids, tag_ids, brand_ids=()
         db.session.add(PersonBrand(person_id=person.id, brand_id=brand_id))
 
 
+def _apply_works_all_flags(person):
+    """Read the 'works with all GEO / all brands' checkboxes.
+
+    When set, the explicit per-item links are cleared — the person is shown as
+    a single "Всі ГЕО / Всі бренди" chip instead of an exhaustive list.
+    """
+    person.works_all_brands = _checkbox("works_all_brands")
+    person.works_all_geos = _checkbox("works_all_geos")
+
+    if person.works_all_brands:
+        PersonBrand.query.filter_by(person_id=person.id).delete()
+    if person.works_all_geos:
+        PersonGeoLocation.query.filter_by(person_id=person.id).delete()
+
+
 def _sync_visibility_scope_links(person, brand_ids, geo_ids, department_ids):
     PersonVisibilityBrand.query.filter_by(person_id=person.id).delete()
     PersonVisibilityGeo.query.filter_by(person_id=person.id).delete()
@@ -373,6 +388,8 @@ def create_person():
             request.form.getlist("person_brand_ids", type=int),
         )
 
+        _apply_works_all_flags(person)
+
         if _is_admin():
             _sync_visibility_scope_links(
                 person,
@@ -502,6 +519,8 @@ def edit_person(person_id):
             request.form.getlist("tag_ids", type=int),
             request.form.getlist("person_brand_ids", type=int),
         )
+
+        _apply_works_all_flags(person)
 
         _sync_department_lead_flag(person, request.form.get("is_department_lead") == "on")
 

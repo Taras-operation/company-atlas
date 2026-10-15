@@ -60,33 +60,92 @@
 
   <div class="card">
     <h2>Видимість</h2>
-    <p class="muted" style="margin-top:0;">Ролі видимості, призначені людині (що вона бачить у візуалізації / картках відділів).</p>
-    <ul>
-      {% for item in person.role_links %}
-        <li>
-          {{ item.role.name }}
-          {% if item.role.show_in_visualization %}
-            <span class="muted">— бачить візуалізацію</span>
-          {% endif %}
-          {% if item.role.show_in_department_card %}
-            <span class="muted">— може відкривати картку відділу</span>
-          {% endif %}
-        </li>
-      {% else %}
-        <li>Ролі видимості не призначені</li>
-      {% endfor %}
-    </ul>
+    <p class="muted" style="margin-top:0;">Що саме ця людина бачить у візуалізації / картках відділів (налаштовується в «Редагувати»).</p>
+
+    {% macro yn(v) %}{% if v %}<span style="color:#166534;font-weight:700;">✓</span>{% else %}<span style="color:#991b1b;font-weight:700;">✕</span>{% endif %}{% endmacro %}
+    {% set scope_labels = {"all": "Всі", "selected": "Вибірково", "none": "Нічого"} %}
+    {% set card_labels = {"full": "Повний доступ", "limited": "Частково обмежений доступ", "minimal": "Мінімальний доступ", "none": "Закритий доступ"} %}
+
+    {% if person.department_card_access == "full" %}
+      <div style="background:#dcfce7;color:#166534;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
+        <strong>Повний доступ:</strong> у картці відділу відкрито все, незалежно від галочок нижче.
+      </div>
+    {% elif person.department_card_access == "none" %}
+      <div style="background:#fee2e2;color:#991b1b;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
+        <strong>Закритий доступ:</strong> у картці видно лише короткий і повний опис, решту приховано (галочки нижче не застосовуються).
+      </div>
+    {% else %}
+      <div style="background:#eef2ff;color:#3730a3;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
+        <strong>Частково обмежений доступ:</strong> у картці видно саме те, що відмічено галочками нижче.
+      </div>
+    {% endif %}
+
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <div style="font-weight:700;margin-bottom:4px;">Карта</div>
+        <div>{{ yn(person.map_access) }} Бачить загальну карту / візуалізацію</div>
+        <div>{{ yn(person.map_show_connections) }} Бачить зв’язки між відділами</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;margin-bottom:4px;">Обсяг</div>
+        <div>Бренди: <strong>{{ scope_labels.get(person.brand_scope, person.brand_scope) }}</strong>{% if person.brand_scope == 'selected' %} <span class="muted">(приховано: {{ person.visibility_brand_links|length }})</span>{% endif %}</div>
+        <div>GEO: <strong>{{ scope_labels.get(person.geo_scope, person.geo_scope) }}</strong>{% if person.geo_scope == 'selected' %} <span class="muted">(приховано: {{ person.visibility_geo_links|length }})</span>{% endif %}</div>
+        <div>Відділи: <strong>{{ scope_labels.get(person.department_scope, person.department_scope) }}</strong>{% if person.department_scope == 'selected' %} <span class="muted">(приховано: {{ person.visibility_department_links|length }})</span>{% endif %}</div>
+        <div>Доступ до картки відділу: <strong>{{ card_labels.get(person.department_card_access, person.department_card_access) }}</strong></div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;margin-bottom:4px;">Контент картки відділу</div>
+        <div>{{ yn(person.card_show_short_description) }} Короткий опис</div>
+        <div>{{ yn(person.card_show_full_description) }} Повний опис і функціонал</div>
+        <div>{{ yn(person.card_show_relations) }} Зв’язані відділи</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;margin-bottom:4px;">Команда відділу</div>
+        <div>{{ yn(person.show_department_people_count) }} Кількість людей</div>
+        <div>{{ yn(person.show_department_leads) }} Керівники / TL / Head</div>
+        <div>{{ yn(person.show_department_lead_positions) }} Посади керівників</div>
+        <div>{{ yn(person.show_department_people) }} Люди відділу</div>
+        <div>{{ yn(person.show_department_people_positions) }} Посади людей</div>
+        <div>{{ yn(person.show_department_people_responsibility) }} Зона відповідальності людей</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;margin-bottom:4px;">Контакти відділу</div>
+        <div>{{ yn(person.show_department_email) }} Email відділу</div>
+        <div>{{ yn(person.show_department_telegram) }} Telegram відділу</div>
+        <div>{{ yn(person.show_department_chat_link) }} Chat link відділу</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;margin-bottom:4px;">Контакти керівників / TL</div>
+        <div>{{ yn(person.show_lead_contacts) }} Бачить контакти керівників</div>
+        <div>{{ yn(person.show_lead_email) }} Email · {{ yn(person.show_lead_telegram) }} Telegram · {{ yn(person.show_lead_reddy) }} Reddy</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;margin-bottom:4px;">Контакти людей відділу</div>
+        <div>{{ yn(person.show_people_contacts) }} Бачить контакти людей</div>
+        <div>{{ yn(person.show_people_email) }} Email · {{ yn(person.show_people_telegram) }} Telegram · {{ yn(person.show_people_reddy) }} Reddy</div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
     <h2>GEO / міста / ринки</h2>
-    <ul>
-      {% for item in person.geo_location_links %}
-        <li>{{ item.geo_location.geo.name }} — {{ item.geo_location.name }}</li>
-      {% else %}
-        <li>Поки пусто</li>
-      {% endfor %}
-    </ul>
+    {% if person.works_all_geos %}
+      <p><strong>Всі ГЕО</strong> <span class="muted">(працює з усіма)</span></p>
+    {% else %}
+      <ul>
+        {% for item in person.geo_location_links %}
+          <li>{{ item.geo_location.geo.name }} — {{ item.geo_location.name }}</li>
+        {% else %}
+          <li>Поки пусто</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
   </div>
 
   <div class="card">
@@ -159,13 +218,17 @@
 
   <div class="card">
     <h2>Бренди</h2>
-    <ul>
-      {% for item in person.brand_links %}
-        <li>{{ item.brand.name }}</li>
-      {% else %}
-        <li class="muted">Не вказано</li>
-      {% endfor %}
-    </ul>
+    {% if person.works_all_brands %}
+      <p><strong>Всі бренди</strong> <span class="muted">(працює з усіма)</span></p>
+    {% else %}
+      <ul>
+        {% for item in person.brand_links %}
+          <li>{{ item.brand.name }}</li>
+        {% else %}
+          <li class="muted">Не вказано</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
   </div>
 
   <div class="card full-width">
