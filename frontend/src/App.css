@@ -5,3 +5,7 @@
 .rich-text ul, .rich-text ol { margin: 0 0 8px; padding-left: 20px; }
 .rich-text a { color: #60A5FA; }
 .rich-text strong { color: inherit; font-weight: 700; }
+/* Ignore inline colours the editor baked into the pasted HTML (e.g. black text),
+   so the content always follows its container's theme colour. Links keep their own. */
+.rich-text, .rich-text * { color: inherit !important; }
+.rich-text a { color: #60A5FA !important; }

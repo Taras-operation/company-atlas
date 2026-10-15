@@ -2810,6 +2810,9 @@ function App() {
             onClick={(event) => event.stopPropagation()}
             style={{
               width: 'min(560px, 100%)',
+              maxHeight: 'calc(100vh - 64px)',
+              display: 'flex',
+              flexDirection: 'column',
               borderRadius: 26,
               border: `1px solid ${T.border}`,
               background: 'linear-gradient(180deg, #0F172A 0%, #020617 100%)',
@@ -2817,7 +2820,7 @@ function App() {
               overflow: 'hidden',
             }}
           >
-            <div style={{ padding: 26, borderBottom: '1px solid rgba(30,41,59,.9)', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+            <div style={{ flexShrink: 0, padding: 26, borderBottom: '1px solid rgba(30,41,59,.9)', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
               <div>
                 <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.16em', color: T.textFaint, marginBottom: 10 }}>
                   {selectedPerson.source === 'leader' ? 'Картка лідера / TL' : 'Картка людини'}
@@ -2862,7 +2865,7 @@ function App() {
               </button>
             </div>
 
-            <div style={{ padding: 26, display: 'grid', gap: 18 }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 26, display: 'grid', gap: 18 }}>
               <section style={{ borderRadius: 20, border: '1px solid rgba(30,41,59,.9)', background: T.cardBg, boxShadow: T.shadowSm, padding: 18 }}>
                 <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: T.textFaint, marginBottom: 14, fontWeight: 800 }}>
                   Контакти
@@ -2909,7 +2912,7 @@ function App() {
                   return ra ? (
                     <div
                       className="rich-text"
-                      style={{ color: T.text, fontSize: 14, lineHeight: '24px' }}
+                      style={{ color: '#E2E8F0', fontSize: 14, lineHeight: '24px' }}
                       dangerouslySetInnerHTML={{ __html: ra }}
                     />
                   ) : (

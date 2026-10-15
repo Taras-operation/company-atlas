@@ -60,6 +60,7 @@
 
   <div class="card">
     <h2>Видимість</h2>
+    <p class="muted" style="margin-top:0;">Ролі видимості, призначені людині (що вона бачить у візуалізації / картках відділів).</p>
     <ul>
       {% for item in person.role_links %}
         <li>
@@ -72,7 +73,7 @@
           {% endif %}
         </li>
       {% else %}
-        <li>Поки пусто</li>
+        <li>Ролі видимості не призначені</li>
       {% endfor %}
     </ul>
   </div>

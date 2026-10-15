@@ -578,11 +578,26 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
 
     // Regional lines: sub-departments as a small branch off the root (always visible).
     // faint=true renders the branch at 50% opacity until the parent/child is active.
+    // Few children → a short straight branch (the classic look). Many children → a bounded
+    // fan, so a node with lots of sub-departments never shoots one long line off-screen for
+    // the ones that haven't been hand-placed yet. (Saved manual positions still override.)
     const placeGeoChildren = (root, x, y, perp, color, faint = false) => {
-      childrenOf(root.id).filter((k) => !hidden.has(String(k.id))).forEach((kid, ki) => {
-        const bx = x + perp[0] * GEO_BRANCH * (ki + 1)
-        const by = y + perp[1] * GEO_BRANCH * (ki + 1)
-        pos.set(String(kid.id), { x: bx, y: by, color: LC(color), station: kid, dx: perp[0], dy: perp[1], isRoot: false, branchFrom: { x, y }, faint })
+      const kids = childrenOf(root.id).filter((k) => !hidden.has(String(k.id)))
+      const n = kids.length
+      const base = Math.atan2(perp[1], perp[0])
+      kids.forEach((kid, ki) => {
+        let bx, by, dx = perp[0], dy = perp[1]
+        if (n > 6) {
+          const spread = Math.min(Math.PI * 1.1, 0.33 * (n - 1))
+          const a = n === 1 ? base : base - spread / 2 + spread * (ki / (n - 1))
+          const R = GEO_BRANCH * 1.5 + (ki % 4) * 22
+          dx = Math.cos(a); dy = Math.sin(a)
+          bx = x + dx * R; by = y + dy * R
+        } else {
+          bx = x + perp[0] * GEO_BRANCH * (ki + 1)
+          by = y + perp[1] * GEO_BRANCH * (ki + 1)
+        }
+        pos.set(String(kid.id), { x: bx, y: by, color: LC(color), station: kid, dx, dy, isRoot: false, branchFrom: { x, y }, faint })
       })
     }
 

@@ -107,6 +107,13 @@
         hidePlaceholder: true,
         placeholder: el.dataset.placeholder || 'Оберіть значення',
         closeAfterSelect: false,
+        // Treat any dash (-, –, —) in the query as a space, so "LATAM — Cuba" is found
+        // whether you type a normal hyphen, an em-dash, or just a space.
+        score: function (search) {
+          var normalized = (search || '').replace(/[-‐-―]/g, ' ');
+          var scoreFn = this.getScoreFunction(normalized);
+          return function (item) { return scoreFn(item); };
+        },
         onItemAdd: function (value) {
           if (value === '__ALL__') {
             const values = Object.keys(this.options).filter(function (v) { return v !== '__ALL__'; });
