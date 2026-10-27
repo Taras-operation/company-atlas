@@ -48,6 +48,12 @@ def visualization_map_api():
     is_admin_preview = current_user.is_authenticated
     public_view = visualization_user is None and not is_admin_preview
 
+    # No anonymous access: the map requires a logged-in viewer or admin.
+    # (Previously anonymous callers got a "public limited" payload that still
+    # exposed department names, descriptions, hierarchy, brands and GEO.)
+    if public_view:
+        return jsonify({"error": "unauthorized"}), 401
+
     payload = build_visualization_map_payload(
         brand_id=brand_id,
         geo_id=geo_id,
@@ -78,8 +84,22 @@ def _can_edit_layout():
     return current_user.is_authenticated and getattr(current_user, "admin_role", None) in ("super_admin", "admin")
 
 
+def _is_authorized_viewer():
+    """A logged-in admin, or an active visualization viewer session."""
+    if current_user.is_authenticated:
+        return True
+    viewer_id = session.get("visualization_user_id")
+    if not viewer_id:
+        return False
+    viewer = ViewerUser.query.get(viewer_id)
+    return bool(viewer and viewer.is_active)
+
+
 @visualization_bp.route("/api/layout/<layout_key>", methods=["GET"])
 def get_layout(layout_key):
+    if not _is_authorized_viewer():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
     from app.models import MapLayout
     import json
 
