@@ -1,4 +1,11 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+import csv
+import io
+import json
+import re
+import zipfile
+from datetime import datetime
+
+from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 
@@ -689,3 +696,190 @@ def toggle_admin_user_active(user_id):
 
     flash("Статус користувача оновлено", "success")
     return redirect(url_for("settings.admin_users"))
+
+# =========================================================
+# DATA EXPORT (admins only — gated by settings before_request)
+# =========================================================
+
+# Person columns offered as checkboxes: key -> (header, attribute/kind)
+_PERSON_FIELDS = [
+    ("position", "Посада"),
+    ("grade", "Grade"),
+    ("email", "Email"),
+    ("telegram", "Telegram"),
+    ("phone", "Телефон"),
+    ("manager", "Керівник"),
+    ("responsibility", "Зона відповідальності"),
+]
+
+_DEPTH_LABELS = {"all": "Усі рівні", "1": "Тільки рівень 1", "2": "До рівня 2", "3": "До рівня 3"}
+
+
+def _strip_html(text):
+    if not text:
+        return ""
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text)).strip()
+
+
+def _collect_export_departments(scope_id, depth, type_id):
+    """Return a list of (department, level, path_names) honouring the filters.
+
+    scope_id: a department id to start from, or None = whole company.
+    depth: 'all' | '1' | '2' | '3' (levels counted from the scope root).
+    type_id: restrict to a department type, or None = all.
+    """
+    deps = Department.query.filter_by(is_archived=False).all()
+    by_id = {d.id: d for d in deps}
+    children = {}
+    for d in deps:
+        children.setdefault(d.parent_department_id, []).append(d)
+
+    if scope_id and scope_id in by_id:
+        roots = [by_id[scope_id]]
+    else:
+        roots = [d for d in deps if not d.parent_department_id or d.parent_department_id not in by_id]
+
+    max_level = {"1": 1, "2": 2, "3": 3}.get(str(depth), 999)
+
+    result = []
+
+    def walk(dep, level, path):
+        if level > max_level:
+            return
+        new_path = path + [dep.name]
+        result.append((dep, level, new_path))
+        for child in sorted(children.get(dep.id, []), key=lambda x: (x.name or "").lower()):
+            walk(child, level + 1, new_path)
+
+    for root in sorted(roots, key=lambda x: (x.name or "").lower()):
+        walk(root, 1, [])
+
+    if type_id:
+        result = [(d, lvl, p) for (d, lvl, p) in result if d.department_type_id == type_id]
+
+    return result
+
+
+def _person_value(person, key):
+    if key == "position":
+        return person.position or ""
+    if key == "grade":
+        return person.grade or ""
+    if key == "email":
+        return (person.email or "").replace("\n", ", ")
+    if key == "telegram":
+        return person.telegram or ""
+    if key == "phone":
+        return person.phone or ""
+    if key == "manager":
+        return person.manager.full_name if person.manager else ""
+    if key == "responsibility":
+        return _strip_html(person.responsibility_area)
+    return ""
+
+
+@settings_bp.route("/export")
+def export_page():
+    departments = Department.query.filter_by(is_archived=False).order_by(Department.name.asc()).all()
+    department_types = DepartmentType.query.order_by(DepartmentType.name.asc()).all()
+    return render_template(
+        "settings/export.html",
+        departments=departments,
+        department_types=department_types,
+        person_fields=_PERSON_FIELDS,
+    )
+
+
+@settings_bp.route("/export/download")
+def export_download():
+    scope_id = request.args.get("department_id", type=int)
+    depth = request.args.get("depth", "all")
+    type_id = request.args.get("type_id", type=int)
+    include_people = request.args.get("include_people") == "1"
+    person_cols = [k for k, _ in _PERSON_FIELDS if request.args.get("col_" + k) == "1"]
+    fmt = request.args.get("fmt", "csv")
+
+    rows = _collect_export_departments(scope_id, depth, type_id)
+    max_level = max([lvl for _, lvl, _ in rows], default=1)
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M")
+
+    # --- JSON (full, per filters) ---
+    if fmt == "json":
+        payload = {
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "filters": {
+                "department_id": scope_id,
+                "depth": depth,
+                "type_id": type_id,
+                "include_people": include_people,
+                "person_columns": person_cols,
+            },
+            "departments": [],
+        }
+        for dep, lvl, path in rows:
+            entry = {
+                "id": dep.id,
+                "name": dep.name,
+                "level": lvl,
+                "path": path,
+                "type": dep.department_type.name if dep.department_type else None,
+                "parent_department_id": dep.parent_department_id,
+            }
+            if include_people:
+                entry["people"] = [
+                    {
+                        "full_name": p.full_name,
+                        **{k: _person_value(p, k) for k in person_cols},
+                    }
+                    for p in dep.people
+                    if not p.is_archived
+                ]
+            payload["departments"].append(entry)
+        body = json.dumps(payload, ensure_ascii=False, indent=2)
+        return Response(
+            body,
+            mimetype="application/json",
+            headers={"Content-Disposition": f'attachment; filename="export_{ts}.json"'},
+        )
+
+    # --- CSV (departments table) ---
+    def departments_csv():
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        level_headers = [f"Рівень {i}" for i in range(1, max_level + 1)]
+        w.writerow(level_headers + ["Тип"])
+        for dep, lvl, path in rows:
+            cells = list(path) + [""] * (max_level - len(path))
+            w.writerow(cells + [dep.department_type.name if dep.department_type else ""])
+        return buf.getvalue()
+
+    def people_csv():
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        headers = ["Топ-відділ", "Відділ", "ПІБ"] + [lbl for k, lbl in _PERSON_FIELDS if k in person_cols]
+        w.writerow(headers)
+        for dep, lvl, path in rows:
+            top = path[0] if path else dep.name
+            for p in dep.people:
+                if p.is_archived:
+                    continue
+                w.writerow([top, dep.name, p.full_name] + [_person_value(p, k) for k in person_cols])
+        return buf.getvalue()
+
+    if include_people:
+        mem = io.BytesIO()
+        with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("departments.csv", "﻿" + departments_csv())
+            zf.writestr("people.csv", "﻿" + people_csv())
+        mem.seek(0)
+        return Response(
+            mem.getvalue(),
+            mimetype="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="export_{ts}.zip"'},
+        )
+
+    return Response(
+        ("﻿" + departments_csv()).encode("utf-8"),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="departments_{ts}.csv"'},
+    )

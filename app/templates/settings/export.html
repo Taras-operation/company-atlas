@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Експорт даних{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Експорт даних</h1>
+    <p class="muted">Оберіть фільтри й завантажте структуру відділів та/або людей.</p>
+  </div>
+  <div class="actions">
+    <a class="btn btn-secondary" href="{{ url_for('settings.index') }}">← Налаштування</a>
+  </div>
+</div>
+
+<form method="get" action="{{ url_for('settings.export_download') }}">
+  <div class="grid-2">
+    <div class="card">
+      <h2>Відділи</h2>
+
+      <div class="field">
+        <label>Відділ</label>
+        <select name="department_id">
+          <option value="">Усі відділи</option>
+          {% for d in departments %}
+            <option value="{{ d.id }}">{{ d.name }}</option>
+          {% endfor %}
+        </select>
+        <span class="muted">Якщо обрати відділ — вивантажиться він і вся його ієрархія.</span>
+      </div>
+
+      <div class="field">
+        <label>Глибина</label>
+        <select name="depth">
+          <option value="all">Усі рівні</option>
+          <option value="1">Тільки рівень 1</option>
+          <option value="2">До рівня 2</option>
+          <option value="3">До рівня 3</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Тип відділу</label>
+        <select name="type_id">
+          <option value="">Усі типи</option>
+          {% for t in department_types %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Люди</h2>
+      <label class="checkbox-row">
+        <input type="checkbox" name="include_people" id="include_people" value="1">
+        Включити людей у вивантаження
+      </label>
+
+      <div id="person_cols" style="margin-top:10px; opacity:.5; pointer-events:none;">
+        <p class="muted" style="margin-top:0;">Колонки по людях (ПІБ і відділ — завжди):</p>
+        <div class="checkbox-grid">
+          {% for key, label in person_fields %}
+            <label class="checkbox-row">
+              <input type="checkbox" name="col_{{ key }}" value="1" {% if key in ['position','telegram'] %}checked{% endif %}>
+              {{ label }}
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Формат</h2>
+    <div class="field">
+      <label class="checkbox-row">
+        <input type="radio" name="fmt" value="csv" checked>
+        CSV (таблиця) — зручно для Excel / Google Sheets. З людьми — ZIP (відділи + люди).
+      </label>
+      <label class="checkbox-row">
+        <input type="radio" name="fmt" value="json">
+        JSON (повний) — усе за фільтрами, для backup / аналізу.
+      </label>
+    </div>
+
+    <div class="actions" style="margin-top:12px;">
+      <button class="btn btn-primary" type="submit">⬇ Завантажити</button>
+    </div>
+  </div>
+</form>
+
+<script>
+  (function () {
+    var cb = document.getElementById('include_people');
+    var block = document.getElementById('person_cols');
+    function sync() {
+      var on = cb.checked;
+      block.style.opacity = on ? '1' : '.5';
+      block.style.pointerEvents = on ? 'auto' : 'none';
+    }
+    cb.addEventListener('change', sync);
+    sync();
+  })();
+</script>
+{% endblock %}
