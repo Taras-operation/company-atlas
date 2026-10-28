@@ -9,3 +9,6 @@
    so the content always follows its container's theme colour. Links keep their own. */
 .rich-text, .rich-text * { color: inherit !important; }
 .rich-text a { color: #60A5FA !important; }
+/* Also drop inline background highlights (e.g. background-color:white baked in by
+   the editor) — on dark panels they rendered as solid white bars over the text. */
+.rich-text, .rich-text * { background-color: transparent !important; }
