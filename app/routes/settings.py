@@ -2,7 +2,6 @@ import csv
 import io
 import json
 import re
-import zipfile
 from datetime import datetime
 
 from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
@@ -842,44 +841,35 @@ def export_download():
             headers={"Content-Disposition": f'attachment; filename="export_{ts}.json"'},
         )
 
-    # --- CSV (departments table) ---
-    def departments_csv():
-        buf = io.StringIO()
-        w = csv.writer(buf)
-        level_headers = [f"Рівень {i}" for i in range(1, max_level + 1)]
+    # --- CSV: one combined table ---
+    # Level columns (Рівень 1/2/3) + Тип, and — when people are included —
+    # one row per person (department rows without people keep empty person cells
+    # so the structure isn't lost).
+    level_headers = [f"Рівень {i}" for i in range(1, max_level + 1)]
+    buf = io.StringIO()
+    w = csv.writer(buf)
+
+    if include_people:
+        person_headers = ["ПІБ"] + [lbl for k, lbl in _PERSON_FIELDS if k in person_cols]
+        w.writerow(level_headers + ["Тип"] + person_headers)
+        for dep, lvl, path in rows:
+            cells = list(path) + [""] * (max_level - len(path))
+            type_cell = dep.department_type.name if dep.department_type else ""
+            people = [p for p in dep.people if not p.is_archived]
+            if people:
+                for p in people:
+                    w.writerow(cells + [type_cell, p.full_name] + [_person_value(p, k) for k in person_cols])
+            else:
+                # keep the department even if it has no people
+                w.writerow(cells + [type_cell] + [""] * len(person_headers))
+    else:
         w.writerow(level_headers + ["Тип"])
         for dep, lvl, path in rows:
             cells = list(path) + [""] * (max_level - len(path))
             w.writerow(cells + [dep.department_type.name if dep.department_type else ""])
-        return buf.getvalue()
-
-    def people_csv():
-        buf = io.StringIO()
-        w = csv.writer(buf)
-        headers = ["Топ-відділ", "Відділ", "ПІБ"] + [lbl for k, lbl in _PERSON_FIELDS if k in person_cols]
-        w.writerow(headers)
-        for dep, lvl, path in rows:
-            top = path[0] if path else dep.name
-            for p in dep.people:
-                if p.is_archived:
-                    continue
-                w.writerow([top, dep.name, p.full_name] + [_person_value(p, k) for k in person_cols])
-        return buf.getvalue()
-
-    if include_people:
-        mem = io.BytesIO()
-        with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr("departments.csv", "﻿" + departments_csv())
-            zf.writestr("people.csv", "﻿" + people_csv())
-        mem.seek(0)
-        return Response(
-            mem.getvalue(),
-            mimetype="application/zip",
-            headers={"Content-Disposition": f'attachment; filename="export_{ts}.zip"'},
-        )
 
     return Response(
-        ("﻿" + departments_csv()).encode("utf-8"),
+        ("﻿" + buf.getvalue()).encode("utf-8"),
         mimetype="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="departments_{ts}.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="export_{ts}.csv"'},
     )
