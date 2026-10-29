@@ -4,7 +4,7 @@ import { themed } from '../../theme'
 
 const BG_DARK = '#0B1524'
 const BG_LIGHT = '#FAFBFD'
-const W = 1900
+const W = 2400
 const H = 1300
 const CX = W / 2
 const CY = H / 2
@@ -443,9 +443,13 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
     // below always places levels 1-2; deeper sub-departments stay hidden on the general
     // map and appear only when their parent has been clicked (its id is in expandedIds),
     // fanning outward from it. Their own children appear when they too get expanded.
+    // In constructor mode the whole sub-tree is popped out at once (click-to-expand is
+    // disabled there), so every node with children counts as expanded.
+    const isNodeExpanded = (k) => constructorMode ? childrenOf(k).length > 0 : expandedIds.has(String(k))
+
     const placeExpandedDescendants = () => {
       const queue = []
-      pos.forEach((_v, k) => { if (expandedIds.has(k)) queue.push(k) })
+      pos.forEach((_v, k) => { if (isNodeExpanded(k)) queue.push(k) })
       const done = new Set()
       while (queue.length) {
         const pid = queue.shift()
@@ -465,7 +469,7 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
           const a = kids.length === 1 ? baseA : baseA - spread / 2 + spread * (ki / (kids.length - 1))
           const ux = Math.cos(a), uy = Math.sin(a)
           pos.set(String(kid.id), { x: parent.x + ux * rr, y: parent.y + uy * rr, color: parent.color, station: kid, dx: ux, dy: uy, isRoot: false, branchFrom: { x: parent.x, y: parent.y } })
-          if (expandedIds.has(String(kid.id))) queue.push(String(kid.id))
+          if (isNodeExpanded(String(kid.id))) queue.push(String(kid.id))
         })
       }
     }
@@ -723,7 +727,7 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
 
     placeExpandedDescendants()
     return { positions: pos, rays: rayPaths }
-  }, [lineGroups, layoutMode, childrenByParent, geometry, expandedIds, light])
+  }, [lineGroups, layoutMode, childrenByParent, geometry, expandedIds, light, constructorMode])
 
   const connectedIds = useMemo(() => {
     const set = new Set()
@@ -772,7 +776,7 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
 
   return (
     <div style={{ width: '100%', height: '100%', background: BG }}>
-      <TransformWrapper minScale={0.18} maxScale={2.6} initialScale={0.92} wheel={{ smoothStep: 0.07 }} doubleClick={{ disabled: true }} panning={{ disabled: constructorMode }} centerOnInit>
+      <TransformWrapper minScale={0.18} maxScale={2.6} initialScale={0.92} wheel={{ smoothStep: 0.07 }} doubleClick={{ disabled: true }} panning={{ disabled: constructorMode }} limitToBounds={false} centerZoomedOut={false} centerOnInit>
         <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', height: '100%' }}>
           <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
             onPointerMove={onSvgPointerMove} onPointerUp={onSvgPointerUp} onPointerLeave={onSvgPointerUp}>
@@ -996,7 +1000,7 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
               // them out. Roots always show their direct children, so they aren't "expandable".
               const kidCount = childrenOf(station.id).length
               const expandable = !isRoot && kidCount > 0
-              const isExpanded = expandable && expandedIds.has(id)
+              const isExpanded = expandable && (constructorMode || expandedIds.has(id))
               // faint sub-departments (service branches): 50% until this node or its parent is active
               const parentActive = posItem.faint && activeId != null && (String(parentIdOf(station)) === String(activeId) || activeKin.has(id))
               const faintOp = posItem.faint && !isAct && !parentActive ? (light ? 0.68 : 0.5) : 1

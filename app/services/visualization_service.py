@@ -218,7 +218,8 @@ def _apply_card_access_level(access):
     """Make the department-card access level the primary control.
 
     full    -> opens everything in the card (individual checkboxes ignored)
-    none    -> opens only the short + full description, nothing else
+    none    -> opens the short + full description and department connections,
+               nothing else
     limited -> keeps the per-checkbox configuration as-is
 
     Applied at read time so existing records behave correctly without a re-save.
@@ -233,6 +234,9 @@ def _apply_card_access_level(access):
             access[key] = False
         access["can_view_short_description"] = True
         access["can_view_full_description"] = True
+        # Junior / closed level still sees department connections (links on the map).
+        access["can_view_relations"] = True
+        access["can_view_related_departments"] = True
 
     return access
 

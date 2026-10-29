@@ -29,8 +29,20 @@
       {% endfor %}
     </select>
 
+    <select name="position">
+      <option value="">Всі посади</option>
+      {% for p in positions %}
+        <option value="{{ p }}" {% if request.args.get('position') == p %}selected{% endif %}>
+          {{ p }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="dir" value="{{ direction }}">
+
     <button class="btn btn-primary" type="submit">Знайти</button>
-    {% if request.args.get('search') or request.args.get('department_id') or request.args.get('grade') %}
+    {% if request.args.get('search') or request.args.get('department_id') or request.args.get('grade') or request.args.get('position') %}
       <a href="{{ url_for('people.list_people') }}" class="btn btn-secondary">Скинути</a>
     {% endif %}
   </form>
@@ -38,10 +50,20 @@
 
 <div class="card">
   <table class="table">
+    {% set base_args = {} %}
+    {% for k in ['search', 'department_id', 'grade', 'position'] %}
+      {% if request.args.get(k) %}{% set _ = base_args.update({k: request.args.get(k)}) %}{% endif %}
+    {% endfor %}
+    {% macro sort_link(key, label) %}
+      {% set next_dir = 'desc' if (sort == key and direction == 'asc') else 'asc' %}
+      {% set arrow = (' ▲' if direction == 'asc' else ' ▼') if sort == key else '' %}
+      <a href="{{ url_for('people.list_people', sort=key, dir=next_dir, **base_args) }}"
+         style="color:inherit; text-decoration:none; cursor:pointer;">{{ label }}{{ arrow }}</a>
+    {% endmacro %}
     <thead>
       <tr>
-        <th>Ім'я</th>
-        <th>Посада</th>
+        <th>{{ sort_link('full_name', "Ім'я") }}</th>
+        <th>{{ sort_link('position', 'Посада') }}</th>
         <th>Відділ</th>
         <th>Grade</th>
         <th>Керівник</th>

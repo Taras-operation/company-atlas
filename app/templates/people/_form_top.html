@@ -309,12 +309,13 @@
     const fullOption = accessSelect.querySelector('option[value="full"]');
 
     if (grade === "junior") {
+      // Junior може обрати «Закритий» або «Частково обмежений»; «Повний» — ні.
       if (noneOption) noneOption.disabled = false;
-      if (limitedOption) limitedOption.disabled = true;
+      if (limitedOption) limitedOption.disabled = false;
       if (fullOption) fullOption.disabled = true;
 
-      if (accessSelect.value !== "none") {
-        accessSelect.value = "none";
+      if (accessSelect.value === "full") {
+        accessSelect.value = "limited";
         applyAccessPreset();
       }
     } else {

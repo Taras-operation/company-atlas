@@ -365,20 +365,49 @@ def list_people():
     if grade:
         query = query.filter(Person.grade == grade)
 
+    position = request.args.get("position", "").strip()
+    if position:
+        query = query.filter(Person.position == position)
+
     # Departments for filter dropdown (respect TL scope)
     dept_query = Department.query.filter_by(is_archived=False)
     if accessible_ids is not None:
         dept_query = dept_query.filter(Department.id.in_(accessible_ids))
     departments = dept_query.order_by(Department.name.asc()).all()
 
+    # Distinct positions for the filter dropdown (respect scope)
+    pos_query = db.session.query(Person.position).filter(
+        Person.is_archived == False,  # noqa: E712
+        Person.position.isnot(None),
+        Person.position != "",
+    )
+    if accessible_ids is not None:
+        pos_query = pos_query.filter(Person.department_id.in_(accessible_ids))
+    positions = sorted({p[0].strip() for p in pos_query.distinct() if p[0] and p[0].strip()},
+                       key=lambda s: s.lower())
+
+    # Sorting: by name (default) or by position
+    sort = request.args.get("sort", "full_name").strip()
+    direction = request.args.get("dir", "asc").strip()
+    if sort == "position":
+        primary = Person.position.asc() if direction != "desc" else Person.position.desc()
+        order_by = (primary, Person.full_name.asc())
+    else:
+        sort = "full_name"
+        primary = Person.full_name.asc() if direction != "desc" else Person.full_name.desc()
+        order_by = (primary,)
+
     page = request.args.get("page", 1, type=int)
-    pagination = query.order_by(Person.full_name.asc()).paginate(page=page, per_page=25, error_out=False)
+    pagination = query.order_by(*order_by).paginate(page=page, per_page=25, error_out=False)
     return render_template(
         "people/list.html",
         items=pagination.items,
         pagination=pagination,
         departments=departments,
         grades=["junior", "middle", "senior"],
+        positions=positions,
+        sort=sort,
+        direction=direction,
     )
 
 

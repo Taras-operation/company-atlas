@@ -955,14 +955,47 @@ function App() {
 
     if (!normalizedQuery) return []
 
-    return departments
-      .filter((department) =>
+    const q = normalizedQuery.replace(/^@/, '')
+    const results = []
+
+    for (const department of departments) {
+      const deptMatch =
         department.name.toLowerCase().includes(normalizedQuery) ||
         department.department_type_name?.toLowerCase().includes(normalizedQuery) ||
         department.brand_names?.some((brand) => brand.toLowerCase().includes(normalizedQuery)) ||
-        department.geo_names?.some((geo) => geo.toLowerCase().includes(normalizedQuery)),
-      )
-      .slice(0, 8)
+        department.geo_names?.some((geo) => geo.toLowerCase().includes(normalizedQuery))
+
+      if (deptMatch) {
+        results.push({ key: `d-${department.id}`, department, person: null })
+      }
+
+      // Search people inside the department — by Telegram, name or position.
+      const peopleAndLeads = [
+        ...(department.people || []),
+        ...(department.leaders || []),
+      ]
+      for (const person of peopleAndLeads) {
+        const u = person.user || {}
+        const tg = (u.telegram || '').toLowerCase().replace(/^@/, '')
+        const name = (u.name || u.full_name || u.username || '').toLowerCase()
+        const pos = (person.position || u.position || '').toLowerCase()
+        if (tg.includes(q) || name.includes(normalizedQuery) || pos.includes(normalizedQuery)) {
+          results.push({
+            key: `p-${department.id}-${u.telegram || name || Math.random()}`,
+            department,
+            person: {
+              name: u.name || u.full_name || u.username || u.email || '?',
+              telegram: u.telegram || null,
+              position: person.position || u.position || null,
+            },
+          })
+        }
+        if (results.length >= 24) break
+      }
+      if (results.length >= 24) break
+    }
+
+    return results.slice(0, 10)
   }, [searchQuery, departments])
 
   const selectDepartmentFromSearch = (department) => {
@@ -1524,9 +1557,9 @@ function App() {
                     padding: 8,
                   }}
                 >
-                  {searchResults.map((department) => (
+                  {searchResults.map(({ key, department, person }) => (
                     <button
-                      key={department.id}
+                      key={key}
                       onClick={() => selectDepartmentFromSearch(department)}
                       style={{
                         width: '100%',
@@ -1553,12 +1586,25 @@ function App() {
                         }}
                       />
                       <span style={{ minWidth: 0 }}>
-                        <span style={{ display: 'block', fontSize: 13, fontWeight: 800 }}>
-                          {department.name}
-                        </span>
-                        <span style={{ display: 'block', marginTop: 3, fontSize: 11, color: T.textMuted }}>
-                          {department.department_type_name || 'Department'}
-                        </span>
+                        {person ? (
+                          <>
+                            <span style={{ display: 'block', fontSize: 13, fontWeight: 800 }}>
+                              {person.telegram ? `${person.telegram} · ` : ''}{person.name}
+                            </span>
+                            <span style={{ display: 'block', marginTop: 3, fontSize: 11, color: T.textMuted }}>
+                              {person.position ? `${person.position} · ` : ''}{department.name}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ display: 'block', fontSize: 13, fontWeight: 800 }}>
+                              {department.name}
+                            </span>
+                            <span style={{ display: 'block', marginTop: 3, fontSize: 11, color: T.textMuted }}>
+                              {department.department_type_name || 'Department'}
+                            </span>
+                          </>
+                        )}
                       </span>
                     </button>
                   ))}
