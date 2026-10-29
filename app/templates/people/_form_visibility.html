@@ -108,17 +108,17 @@
 
       <div class="checkbox-grid">
         <label class="checkbox-row">
-          <input type="checkbox" name="card_show_short_description" data-access-checkbox data-card-dependent {% if not person or person.card_show_short_description %}checked{% endif %}>
+          <input type="checkbox" name="card_show_short_description" data-access-checkbox data-card-dependent data-closed-allowed {% if not person or person.card_show_short_description %}checked{% endif %}>
           Бачить короткий опис відділу
         </label>
 
         <label class="checkbox-row">
-          <input type="checkbox" name="card_show_full_description" data-access-checkbox data-card-dependent {% if person and person.card_show_full_description %}checked{% endif %}>
+          <input type="checkbox" name="card_show_full_description" data-access-checkbox data-card-dependent data-closed-allowed {% if person and person.card_show_full_description %}checked{% endif %}>
           Бачить повний опис і функціонал відділу
         </label>
 
         <label class="checkbox-row">
-          <input type="checkbox" name="card_show_relations" data-access-checkbox data-card-dependent {% if not person or person.card_show_relations %}checked{% endif %}>
+          <input type="checkbox" name="card_show_relations" data-access-checkbox data-card-dependent data-closed-allowed {% if not person or person.card_show_relations %}checked{% endif %}>
           Бачить зв’язані відділи
         </label>
       </div>
@@ -314,7 +314,13 @@
       const cardClosed = cardAccessSelect && cardAccessSelect.value === "none";
 
       document.querySelectorAll("[data-card-dependent]").forEach(function (input) {
-        setRowDisabled(input, cardClosed);
+        // In closed access only the «content» checkboxes (short/full description,
+        // connections) stay togglable — everything else is locked off.
+        if (cardClosed && input.hasAttribute("data-closed-allowed")) {
+          setRowDisabled(input, false);
+        } else {
+          setRowDisabled(input, cardClosed);
+        }
       });
 
       if (cardClosed) return;

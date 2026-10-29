@@ -1003,7 +1003,9 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
               const isExpanded = expandable && (constructorMode || expandedIds.has(id))
               // faint sub-departments (service branches): 50% until this node or its parent is active
               const parentActive = posItem.faint && activeId != null && (String(parentIdOf(station)) === String(activeId) || activeKin.has(id))
-              const faintOp = posItem.faint && !isAct && !parentActive ? (light ? 0.68 : 0.5) : 1
+              // Nodes that carry a sub-department count stay fully opaque so the
+              // number is always legible (not only on hover).
+              const faintOp = (posItem.faint && !isAct && !parentActive && !expandable) ? (light ? 0.68 : 0.5) : 1
               const r = isAct ? 13 : (expandable ? 12 : (isRoot ? 11 : 7))
               const lx = x + (dx || 0) * 17
               const ly = y + (dy || 0) * 17 - (Math.abs(dy || 0) < 0.3 ? 15 : 0)

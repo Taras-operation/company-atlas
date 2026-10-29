@@ -218,8 +218,8 @@ def _apply_card_access_level(access):
     """Make the department-card access level the primary control.
 
     full    -> opens everything in the card (individual checkboxes ignored)
-    none    -> opens the short + full description and department connections,
-               nothing else
+    none    -> only the three content toggles (short description, full
+               description, connections) are honoured; everything else is off
     limited -> keeps the per-checkbox configuration as-is
 
     Applied at read time so existing records behave correctly without a re-save.
@@ -230,13 +230,16 @@ def _apply_card_access_level(access):
         for key in _CARD_CONTENT_KEYS:
             access[key] = True
     elif level == "none":
+        # Keep the admin-chosen content toggles; lock everything else off.
+        keep = {
+            "can_view_short_description",
+            "can_view_full_description",
+            "can_view_relations",
+            "can_view_related_departments",
+        }
         for key in _CARD_CONTENT_KEYS:
-            access[key] = False
-        access["can_view_short_description"] = True
-        access["can_view_full_description"] = True
-        # Junior / closed level still sees department connections (links on the map).
-        access["can_view_relations"] = True
-        access["can_view_related_departments"] = True
+            if key not in keep:
+                access[key] = False
 
     return access
 

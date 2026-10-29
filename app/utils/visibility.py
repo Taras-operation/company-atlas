@@ -42,9 +42,9 @@ def normalize_visibility(person):
     # -----------------------------------------------------
 
     if person.department_card_access == "none":
-        person.card_show_full_description = False
-        person.card_show_relations = False
-
+        # Closed access keeps the three "content" toggles configurable
+        # (short description, full description, connections) and locks
+        # everything else off.
         person.show_department_people_count = False
         person.show_department_leads = False
         person.show_department_lead_positions = False

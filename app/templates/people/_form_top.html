@@ -309,13 +309,14 @@
     const fullOption = accessSelect.querySelector('option[value="full"]');
 
     if (grade === "junior") {
-      // Junior може обрати «Закритий» або «Частково обмежений»; «Повний» — ні.
+      // Junior має лише «Закритий доступ». Усередині нього можна увімкнути
+      // короткий опис / повний опис / зв'язки — решту чекбоксів заблоковано.
       if (noneOption) noneOption.disabled = false;
-      if (limitedOption) limitedOption.disabled = false;
+      if (limitedOption) limitedOption.disabled = true;
       if (fullOption) fullOption.disabled = true;
 
-      if (accessSelect.value === "full") {
-        accessSelect.value = "limited";
+      if (accessSelect.value !== "none") {
+        accessSelect.value = "none";
         applyAccessPreset();
       }
     } else {
