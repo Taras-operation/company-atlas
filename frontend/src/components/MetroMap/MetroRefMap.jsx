@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MiniMap, TransformComponent, TransformWrapper, useControls } from 'react-zoom-pan-pinch'
 import { themed } from '../../theme'
 
 const BG_DARK = '#0B1524'
 const BG_LIGHT = '#FAFBFD'
-const W = 2400
+const W = 1900
 const H = 1300
 const CX = W / 2
 const CY = H / 2
@@ -118,6 +118,14 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
   const [overrides, setOverrides] = useState({}) // live drag positions {id:{x,y}}
   const [expandedIds, setExpandedIds] = useState(() => new Set()) // sub-departments whose deeper children are popped out (levels 3+)
   const [hoveredRelId, setHoveredRelId] = useState(null) // relation hovered directly
+
+  // Collapse popped-out sub-departments only on Escape (not on pan / background click).
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setExpandedIds(new Set()) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const svgRef = useRef(null)
   const dragRef = useRef(null) // {id}
   const activeId = hoveredId || selectedDepartmentId
@@ -784,7 +792,7 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
               <filter id="mr-glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
             </defs>
 
-            <rect width={W} height={H} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null); setExpandedIds(new Set()); setSelectedDepartmentId(null) }} />
+            <rect width={W} height={H} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null); setSelectedDepartmentId(null) }} />
             <pattern id="mr-dots" x="0" y="0" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill={light ? "rgba(15,23,42,0.07)" : "rgba(148,163,184,0.06)"} /></pattern>
             <rect width={W} height={H} fill="url(#mr-dots)" style={{ pointerEvents: 'none' }} />
 
