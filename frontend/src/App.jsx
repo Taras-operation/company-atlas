@@ -951,51 +951,66 @@ function App() {
   }, [])
 
   const searchResults = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase()
+    const raw = searchQuery.trim().toLowerCase()
+    if (!raw) return []
 
-    if (!normalizedQuery) return []
+    // Split the query into words; every word must be present (AND match).
+    // "@" is treated as a separator so "@julika" and "julika" behave the same.
+    const tokens = raw.replace(/@/g, ' ').split(/\s+/).filter(Boolean)
+    if (!tokens.length) return []
+    const matchesAll = (hay) => tokens.every((t) => hay.includes(t))
 
-    const q = normalizedQuery.replace(/^@/, '')
-    const results = []
+    const deptResults = []
+    const personResults = []
+    const seenDepts = new Set()
+    const seenPersons = new Set() // dedup people across inherited leaders / multiple lines
 
     for (const department of departments) {
-      const deptMatch =
-        department.name.toLowerCase().includes(normalizedQuery) ||
-        department.department_type_name?.toLowerCase().includes(normalizedQuery) ||
-        department.brand_names?.some((brand) => brand.toLowerCase().includes(normalizedQuery)) ||
-        department.geo_names?.some((geo) => geo.toLowerCase().includes(normalizedQuery))
+      const deptId = String(department.id)
 
-      if (deptMatch) {
-        results.push({ key: `d-${department.id}`, department, person: null })
+      if (!seenDepts.has(deptId)) {
+        const deptHay = [
+          department.name,
+          department.department_type_name,
+          ...(department.brand_names || []),
+          ...(department.geo_names || []),
+        ].filter(Boolean).join(' ').toLowerCase()
+        if (matchesAll(deptHay)) {
+          seenDepts.add(deptId)
+          deptResults.push({ key: `d-${deptId}`, department, person: null })
+        }
       }
 
-      // Search people inside the department — by Telegram, name or position.
-      const peopleAndLeads = [
-        ...(department.people || []),
-        ...(department.leaders || []),
-      ]
-      for (const person of peopleAndLeads) {
+      // People + leaders inside the department (matched by Telegram, name, position).
+      const roster = [...(department.people || []), ...(department.leaders || [])]
+      for (const person of roster) {
         const u = person.user || {}
-        const tg = (u.telegram || '').toLowerCase().replace(/^@/, '')
+        const tg = (u.telegram || '').toLowerCase()
         const name = (u.name || u.full_name || u.username || '').toLowerCase()
         const pos = (person.position || u.position || '').toLowerCase()
-        if (tg.includes(q) || name.includes(normalizedQuery) || pos.includes(normalizedQuery)) {
-          results.push({
-            key: `p-${department.id}-${u.telegram || name || Math.random()}`,
-            department,
-            person: {
-              name: u.name || u.full_name || u.username || u.email || '?',
-              telegram: u.telegram || null,
-              position: person.position || u.position || null,
-            },
-          })
+        if (!matchesAll(`${tg} ${name} ${pos}`)) continue
+
+        // One entry per real person (same leader is inherited into many departments).
+        const ident = (u.telegram || name || '').toLowerCase()
+        if (ident) {
+          if (seenPersons.has(ident)) continue
+          seenPersons.add(ident)
         }
-        if (results.length >= 24) break
+        personResults.push({
+          key: `p-${ident || Math.random()}`,
+          department,
+          person: {
+            name: u.name || u.full_name || u.username || u.email || '?',
+            telegram: u.telegram || null,
+            position: person.position || u.position || null,
+          },
+        })
       }
-      if (results.length >= 24) break
+
+      if (deptResults.length + personResults.length >= 40) break
     }
 
-    return results.slice(0, 10)
+    return [...deptResults, ...personResults].slice(0, 12)
   }, [searchQuery, departments])
 
   const selectDepartmentFromSearch = (department) => {
