@@ -128,6 +128,7 @@ class DepartmentLead(db.Model):
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id", ondelete="CASCADE"), nullable=False)
     person_id = db.Column(db.Integer, db.ForeignKey("people.id", ondelete="CASCADE"), nullable=False)
     lead_type = db.Column(db.String(50), nullable=False)
+    position = db.Column(db.String(150))  # role/title in this team (for extra-team memberships)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     department = db.relationship("Department", back_populates="lead_links")

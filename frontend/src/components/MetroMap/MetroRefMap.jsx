@@ -782,19 +782,45 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
   // Effective position of a station by id (live drag / saved / parent-follow / computed).
   const eff = (id) => { const p = positions.get(String(id)); return p ? effPos(String(id), p.x, p.y) : null }
 
+  // Dynamic viewBox: frame the actual content (nodes + label room) instead of a
+  // fixed 1900×1300 box, so the map fills the available screen and isn't boxed in
+  // the centre with empty margins. Node coordinates are untouched.
+  const viewBox = useMemo(() => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    positions.forEach((p, k) => {
+      const e = effPos(String(k), p.x, p.y)
+      if (!e) return
+      if (e.x < minX) minX = e.x
+      if (e.y < minY) minY = e.y
+      if (e.x > maxX) maxX = e.x
+      if (e.y > maxY) maxY = e.y
+    })
+    minX = Math.min(minX, CX); maxX = Math.max(maxX, CX)
+    minY = Math.min(minY, CY); maxY = Math.max(maxY, CY)
+    if (!isFinite(minX) || !isFinite(maxX)) return { x: 0, y: 0, w: W, h: H }
+    const PADX = 280, PADY = 170 // room for long labels fanning off the edge nodes
+    return {
+      x: minX - PADX,
+      y: minY - PADY,
+      w: Math.max((maxX - minX) + PADX * 2, 400),
+      h: Math.max((maxY - minY) + PADY * 2, 400),
+    }
+  }, [positions, geometry, light])
+  const VB = `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`
+
   return (
     <div style={{ width: '100%', height: '100%', background: BG }}>
       <TransformWrapper minScale={0.18} maxScale={2.6} initialScale={0.92} wheel={{ smoothStep: 0.07 }} doubleClick={{ disabled: true }} panning={{ disabled: constructorMode }} limitToBounds={false} centerZoomedOut={false} centerOnInit>
         <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', height: '100%' }}>
-          <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
+          <svg ref={svgRef} viewBox={VB} width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
             onPointerMove={onSvgPointerMove} onPointerUp={onSvgPointerUp} onPointerLeave={onSvgPointerUp}>
             <defs>
               <filter id="mr-glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
             </defs>
 
-            <rect width={W} height={H} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null); setSelectedDepartmentId(null) }} />
+            <rect x={viewBox.x} y={viewBox.y} width={viewBox.w} height={viewBox.h} fill={BG} onClick={() => { if (constructorMode) onSelectConstructorElement?.(null); setSelectedDepartmentId(null) }} />
             <pattern id="mr-dots" x="0" y="0" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="0.8" fill={light ? "rgba(15,23,42,0.07)" : "rgba(148,163,184,0.06)"} /></pattern>
-            <rect width={W} height={H} fill="url(#mr-dots)" style={{ pointerEvents: 'none' }} />
+            <rect x={viewBox.x} y={viewBox.y} width={viewBox.w} height={viewBox.h} fill="url(#mr-dots)" style={{ pointerEvents: 'none' }} />
 
             {/* Ray tracks */}
             {rays.map((ray) => (
@@ -1113,7 +1139,7 @@ export default function MetroRefMap({ payload, light = false, selectedDepartment
 
         <div style={{ position: 'absolute', right: 16, bottom: 16, zIndex: 30, border: light ? '1px solid rgba(15,23,42,0.14)' : '1px solid rgba(148,163,184,0.22)', borderRadius: 10, overflow: 'hidden', background: light ? 'rgba(255,255,255,0.95)' : 'rgba(13,27,42,0.9)', backdropFilter: 'blur(8px)' }}>
           <MiniMap width={180} height={130} borderColor="rgba(96,165,250,0.8)">
-            <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" style={{ display: 'block', background: BG }}>
+            <svg viewBox={VB} width="100%" height="100%" style={{ display: 'block', background: BG }}>
               {rays.map((ray) => (
                 <g key={`mm-${ray.id}`}>
                   <path d={roundedPath(ray.points, 30)} fill="none" stroke={ray.color} strokeWidth={22} opacity={0.8} />

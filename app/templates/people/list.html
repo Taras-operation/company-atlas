@@ -11,7 +11,7 @@
   <form method="get" class="filters">
     <input type="text" name="search" placeholder="Пошук по імені..." value="{{ request.args.get('search', '') }}">
 
-    <select name="department_id">
+    <select name="department_id" class="js-filter-select" data-placeholder="Всі відділи">
       <option value="">Всі відділи</option>
       {% for dept in departments %}
         <option value="{{ dept.id }}" {% if request.args.get('department_id') == dept.id|string %}selected{% endif %}>
@@ -29,7 +29,7 @@
       {% endfor %}
     </select>
 
-    <select name="position">
+    <select name="position" class="js-filter-select" data-placeholder="Всі посади">
       <option value="">Всі посади</option>
       {% for p in positions %}
         <option value="{{ p }}" {% if request.args.get('position') == p %}selected{% endif %}>
@@ -49,37 +49,66 @@
 </div>
 
 <div class="card">
-  <table class="table">
-    {% set base_args = {} %}
-    {% for k in ['search', 'department_id', 'grade', 'position'] %}
-      {% if request.args.get(k) %}{% set _ = base_args.update({k: request.args.get(k)}) %}{% endif %}
-    {% endfor %}
-    {% macro sort_link(key, label) %}
-      {% set next_dir = 'desc' if (sort == key and direction == 'asc') else 'asc' %}
-      {% set arrow = (' ▲' if direction == 'asc' else ' ▼') if sort == key else '' %}
-      <a href="{{ url_for('people.list_people', sort=key, dir=next_dir, **base_args) }}"
-         style="color:inherit; text-decoration:none; cursor:pointer;">{{ label }}{{ arrow }}</a>
-    {% endmacro %}
+  {% set base_args = {} %}
+  {% for k in ['search', 'department_id', 'grade', 'position'] %}
+    {% if request.args.get(k) %}{% set _ = base_args.update({k: request.args.get(k)}) %}{% endif %}
+  {% endfor %}
+  {% macro sort_link(key, label) %}
+    {% set next_dir = 'desc' if (sort == key and direction == 'asc') else 'asc' %}
+    {% set arrow = (' ▲' if direction == 'asc' else ' ▼') if sort == key else '' %}
+    <a href="{{ url_for('people.list_people', sort=key, dir=next_dir, **base_args) }}"
+       style="color:inherit; text-decoration:none; cursor:pointer;">{{ label }}{{ arrow }}</a>
+  {% endmacro %}
+
+  <!-- Column visibility toggle -->
+  <div class="cols-toolbar">
+    <div class="cols-menu" id="cols-menu">
+      <button type="button" class="btn btn-secondary btn-sm" id="cols-toggle-btn">⚙ Колонки</button>
+      <div class="cols-dropdown" id="cols-dropdown" hidden>
+        <strong>Показувати колонки</strong>
+        <!-- checkboxes injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <table class="table" id="people-table">
     <thead>
       <tr>
-        <th>{{ sort_link('full_name', "Ім'я") }}</th>
-        <th>{{ sort_link('position', 'Посада') }}</th>
-        <th>Відділ</th>
-        <th>Grade</th>
-        <th>Керівник</th>
-        <th>Доступ</th>
-        <th></th>
+        <th data-col="name">{{ sort_link('full_name', "Ім'я") }}</th>
+        <th data-col="position">{{ sort_link('position', 'Посада') }}</th>
+        <th data-col="department">Відділ</th>
+        <th data-col="grade">Grade</th>
+        <th data-col="manager">Керівник</th>
+        <th data-col="telegram">Telegram</th>
+        <th data-col="email">Email</th>
+        <th data-col="completeness">Заповненість</th>
+        <th data-col="access">Доступ</th>
+        <th data-col="actions"></th>
       </tr>
     </thead>
     <tbody>
       {% for item in items %}
+        {% set fields = [item.position, item.telegram, item.email, item.phone, item.short_description, item.responsibility_area, item.avatar, item.manager] %}
+        {% set filled = fields | reject('none') | reject('equalto', '') | list | length %}
+        {% set total = fields | length %}
+        {% set pct = (filled * 100 // total) %}
         <tr>
-          <td><a href="{{ url_for('people.detail_person', person_id=item.id) }}"><strong>{{ item.full_name }}</strong></a></td>
-          <td>{{ item.position or "—" }}</td>
-          <td>{{ item.department.name if item.department else "—" }}</td>
-          <td><span class="badge badge-gray">{{ item.grade }}</span></td>
-          <td>{{ item.manager.full_name if item.manager else "—" }}</td>
-          <td>
+          <td data-col="name"><a href="{{ url_for('people.detail_person', person_id=item.id) }}"><strong>{{ item.full_name }}</strong></a></td>
+          <td data-col="position">{{ item.position or "—" }}</td>
+          <td data-col="department">{{ item.department.name if item.department else "—" }}</td>
+          <td data-col="grade"><span class="badge badge-gray">{{ item.grade }}</span></td>
+          <td data-col="manager">{{ item.manager.full_name if item.manager else "—" }}</td>
+          <td data-col="telegram">{{ item.telegram or "—" }}</td>
+          <td data-col="email">{{ (item.email.split('\n')[0] if item.email else "") or "—" }}</td>
+          <td data-col="completeness">
+            <div class="fill-cell" title="Заповнено {{ filled }} з {{ total }} полів">
+              <div class="fill-bar">
+                <div class="fill-bar-in {{ 'is-low' if pct < 40 else ('is-mid' if pct < 75 else 'is-high') }}" style="width: {{ pct }}%;"></div>
+              </div>
+              <span class="fill-txt">{{ filled }}/{{ total }}</span>
+            </div>
+          </td>
+          <td data-col="access">
             {% if item.viewer_user %}
               {% if item.viewer_user.is_active_user %}
                 <span class="badge badge-green">Активний</span>
@@ -90,13 +119,13 @@
               <span class="badge badge-gray">—</span>
             {% endif %}
           </td>
-          <td>
+          <td data-col="actions">
             <a class="btn btn-secondary btn-sm" href="{{ url_for('people.edit_person', person_id=item.id) }}">Редагувати</a>
           </td>
         </tr>
       {% else %}
         <tr>
-          <td colspan="7">Поки пусто</td>
+          <td colspan="10">Поки пусто</td>
         </tr>
       {% endfor %}
     </tbody>
@@ -104,4 +133,120 @@
 
   {% include "partials/pagination.html" %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Make the «Відділ» / «Посада» filters searchable — type 2–3 letters instead
+  // of scrolling the whole list. Single-select TomSelect with search.
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof TomSelect === 'undefined') return;
+    document.querySelectorAll('.js-filter-select').forEach(function (el) {
+      if (el.tomselect) return;
+      new TomSelect(el, {
+        create: false,
+        persist: false,
+        maxOptions: 1000,
+        allowEmptyOption: true,
+        placeholder: el.dataset.placeholder || 'Оберіть',
+        score: function (search) {
+          var normalized = (search || '').replace(/[-‐-―]/g, ' ');
+          var scoreFn = this.getScoreFunction(normalized);
+          return function (item) { return scoreFn(item); };
+        },
+      });
+    });
+  });
+
+  // ── Column visibility (per-browser, saved in localStorage) ──────────────
+  (function () {
+    var STORAGE_KEY = 'atlas_people_hidden_cols';
+    // Toggleable columns (name + actions are always shown).
+    var COLS = [
+      { key: 'position', label: 'Посада' },
+      { key: 'department', label: 'Відділ' },
+      { key: 'grade', label: 'Grade' },
+      { key: 'manager', label: 'Керівник' },
+      { key: 'telegram', label: 'Telegram' },
+      { key: 'email', label: 'Email' },
+      { key: 'completeness', label: 'Заповненість' },
+      { key: 'access', label: 'Доступ' },
+    ];
+    var DEFAULT_HIDDEN = ['telegram', 'email'];
+
+    function loadHidden() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (raw === null) return DEFAULT_HIDDEN.slice();
+        return JSON.parse(raw) || [];
+      } catch (e) { return DEFAULT_HIDDEN.slice(); }
+    }
+    function saveHidden(list) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+    }
+    function applyCol(key, hidden) {
+      document.querySelectorAll('#people-table [data-col="' + key + '"]').forEach(function (cell) {
+        cell.style.display = hidden ? 'none' : '';
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var dropdown = document.getElementById('cols-dropdown');
+      var btn = document.getElementById('cols-toggle-btn');
+      var menu = document.getElementById('cols-menu');
+      if (!dropdown || !btn) return;
+
+      var hidden = loadHidden();
+
+      COLS.forEach(function (col) {
+        var isHidden = hidden.indexOf(col.key) !== -1;
+        applyCol(col.key, isHidden);
+
+        var row = document.createElement('label');
+        row.className = 'cols-row';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !isHidden;
+        cb.addEventListener('change', function () {
+          var h = loadHidden();
+          var i = h.indexOf(col.key);
+          if (cb.checked) { if (i !== -1) h.splice(i, 1); }
+          else { if (i === -1) h.push(col.key); }
+          saveHidden(h);
+          applyCol(col.key, !cb.checked);
+        });
+        row.appendChild(cb);
+        row.appendChild(document.createTextNode(' ' + col.label));
+        dropdown.appendChild(row);
+      });
+
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        dropdown.hidden = !dropdown.hidden;
+      });
+      document.addEventListener('click', function (e) {
+        if (!menu.contains(e.target)) dropdown.hidden = true;
+      });
+    });
+  })();
+</script>
+<style>
+  .cols-toolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+  .cols-menu { position: relative; }
+  .cols-dropdown {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 50;
+    background: #fff; border: 1px solid #d0d5dd; border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(15,23,42,.14); padding: 12px 14px; min-width: 180px;
+  }
+  .cols-dropdown strong { display: block; font-size: 12px; color: #475467; margin-bottom: 8px; }
+  .cols-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 14px; cursor: pointer; }
+  .cols-row input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; display: inline-block; }
+  .fill-cell { display: flex; align-items: center; gap: 8px; }
+  .fill-bar { width: 72px; height: 8px; border-radius: 999px; background: #e9edf3; overflow: hidden; flex: 0 0 auto; }
+  .fill-bar-in { height: 100%; border-radius: 999px; }
+  .fill-bar-in.is-low { background: #ef4444; }
+  .fill-bar-in.is-mid { background: #f59e0b; }
+  .fill-bar-in.is-high { background: #22c55e; }
+  .fill-txt { font-size: 12px; color: #667085; font-variant-numeric: tabular-nums; }
+</style>
 {% endblock %}

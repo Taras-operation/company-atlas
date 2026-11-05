@@ -159,26 +159,59 @@ def list_roles():
     people = people_query.order_by(Person.full_name.asc()).all()
 
     requests = []
+    pending_count = 0
+    archived_count = 0
+    show_archived = request.args.get("archived") == "1"
+
     if is_global_admin():
-        requests = (
-            VisibilityChangeRequest.query
-            .order_by(VisibilityChangeRequest.created_at.desc())
-            .all()
-        )
+        base = VisibilityChangeRequest.query
+        pending_count = base.filter_by(status="pending", archived=False).count()
+        archived_count = base.filter_by(archived=True).count()
+
+        q = base.filter_by(archived=True) if show_archived else base.filter_by(archived=False)
+        requests = q.order_by(
+            (VisibilityChangeRequest.status != "pending"),  # pending (False) first
+            VisibilityChangeRequest.created_at.desc(),
+        ).all()
 
         for item in requests:
             item.change_view = _format_payload_changes(item.payload, item.person)
             item.formatted_changes = item.change_view["compact_changes"]
-
-    pending_count = sum(1 for r in requests if r.status == "pending")
 
     return render_template(
         "roles/list.html",
         people=people,
         requests=requests,
         pending_count=pending_count,
+        archived_count=archived_count,
+        show_archived=show_archived,
         can_review_visibility_requests=is_global_admin(),
     )
+
+
+def _apply_visibility_request(item, reviewer, comment=None):
+    """Apply a pending request's payload to the person and mark it approved+archived."""
+    person = item.person
+    payload = item.payload or {}
+    fields = payload.get("fields", {})
+
+    for field, value in fields.items():
+        if hasattr(person, field):
+            setattr(person, field, value)
+
+    _sync_visibility_scope_links(
+        person,
+        payload.get("visibility_brand_ids", []),
+        payload.get("visibility_geo_ids", []),
+        payload.get("visibility_department_ids", []),
+    )
+
+    item.status = "approved"
+    item.reviewed_by_id = reviewer.id
+    item.reviewed_at = datetime.utcnow()
+    item.archived = True
+    if comment is not None:
+        item.review_comment = comment
 
 
 @roles_bp.route("/requests/<int:request_id>/approve", methods=["POST"])
@@ -194,51 +227,63 @@ def approve_visibility_request(request_id):
         flash("Запит вже оброблено", "warning")
         return redirect(url_for("roles.list_roles"))
 
-    person = item.person
-    payload = item.payload or {}
-
-    old_data = {
-        "person_id": person.id,
-        "grade": person.grade,
-        "brand_scope": person.brand_scope,
-        "geo_scope": person.geo_scope,
-        "department_scope": person.department_scope,
-        "department_card_access": person.department_card_access,
-    }
-
-    fields = payload.get("fields", {})
-    for field, value in fields.items():
-        if hasattr(person, field):
-            setattr(person, field, value)
-
-    _sync_visibility_scope_links(
-        person,
-        payload.get("visibility_brand_ids", []),
-        payload.get("visibility_geo_ids", []),
-        payload.get("visibility_department_ids", []),
-    )
-
-    item.status = "approved"
-    item.reviewed_by_id = current_user.id
-    item.reviewed_at = datetime.utcnow()
-    item.review_comment = request.form.get("review_comment") or None
-
+    _apply_visibility_request(item, current_user, request.form.get("review_comment") or None)
     db.session.commit()
 
     log_action(
         entity_type="visibility_request",
         entity_id=item.id,
         action="approve",
-        old_data=old_data,
         new_data={
-            "person_id": person.id,
-            "payload": payload,
+            "person_id": item.person_id,
+            "payload": item.payload,
             "status": item.status,
         },
     )
     db.session.commit()
 
     flash("Запит підтверджено", "success")
+    return redirect(url_for("roles.list_roles"))
+
+
+@roles_bp.route("/requests/bulk-approve", methods=["POST"])
+@login_required
+def bulk_approve_visibility_requests():
+    if current_user.admin_role not in ["super_admin", "admin"]:
+        flash("Немає доступу", "danger")
+        return redirect(url_for("roles.list_roles"))
+
+    scope = request.form.get("scope")  # "all_pending" or "selected"
+    if scope == "all_pending":
+        items = VisibilityChangeRequest.query.filter_by(status="pending", archived=False).all()
+    else:
+        ids = request.form.getlist("request_ids", type=int)
+        items = (
+            VisibilityChangeRequest.query
+            .filter(VisibilityChangeRequest.id.in_(ids), VisibilityChangeRequest.status == "pending")
+            .all()
+        ) if ids else []
+
+    count = 0
+    for item in items:
+        _apply_visibility_request(item, current_user)
+        count += 1
+
+    db.session.commit()
+
+    for item in items:
+        log_action(
+            entity_type="visibility_request",
+            entity_id=item.id,
+            action="approve",
+            new_data={"person_id": item.person_id, "status": item.status, "bulk": True},
+        )
+    db.session.commit()
+
+    if count:
+        flash(f"Підтверджено запитів: {count}", "success")
+    else:
+        flash("Не обрано жодного запиту", "warning")
     return redirect(url_for("roles.list_roles"))
 
 
@@ -259,6 +304,7 @@ def reject_visibility_request(request_id):
     item.reviewed_by_id = current_user.id
     item.reviewed_at = datetime.utcnow()
     item.review_comment = request.form.get("review_comment") or None
+    item.archived = True
 
     db.session.commit()
 

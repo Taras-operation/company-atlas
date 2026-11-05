@@ -118,6 +118,97 @@
 </div>
 
 <div class="field">
+  <label>Додаткові команди</label>
+  <p class="visibility-help">Людина може бути керівником / учасником кількох команд (окрім основного відділу). Додайте відділ і посаду в ньому.</p>
+
+  {% set extra_links = [] %}
+  {% if person %}
+    {% for l in person.lead_departments if l.lead_type == "extra_lead" %}
+      {% set _ = extra_links.append(l) %}
+    {% endfor %}
+  {% endif %}
+
+  <div id="extra-teams-list">
+    {% for l in extra_links %}
+      <div class="extra-team-row">
+        <select name="extra_team_dept_id" class="js-extra-team-dept">
+          <option value="">— Відділ —</option>
+          {% for d in departments %}
+            <option value="{{ d.id }}" {% if d.id == l.department_id %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="extra_team_position" value="{{ l.position or '' }}" placeholder="Посада в цій команді">
+        <button type="button" class="btn btn-secondary btn-sm js-remove-extra-team" title="Прибрати">✕</button>
+      </div>
+    {% endfor %}
+  </div>
+
+  <button type="button" class="btn btn-secondary btn-sm" id="add-extra-team">+ Додати команду</button>
+
+  <template id="extra-team-template">
+    <div class="extra-team-row">
+      <select name="extra_team_dept_id" class="js-extra-team-dept">
+        <option value="">— Відділ —</option>
+        {% for d in departments %}
+          <option value="{{ d.id }}">{{ d.name }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="extra_team_position" placeholder="Посада в цій команді">
+      <button type="button" class="btn btn-secondary btn-sm js-remove-extra-team" title="Прибрати">✕</button>
+    </div>
+  </template>
+</div>
+
+<style>
+  .extra-team-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .extra-team-row > input[type="text"] { flex: 1 1 40%; }
+  .extra-team-row .ts-wrapper { flex: 1 1 50%; }
+  .extra-team-row > .js-remove-extra-team { flex: 0 0 auto; }
+</style>
+
+<script>
+  (function () {
+    function initExtraTeamSelect(el) {
+      if (!el || el.tomselect || typeof TomSelect === 'undefined') return;
+      new TomSelect(el, {
+        create: false, persist: false, maxOptions: 1000, allowEmptyOption: true,
+        placeholder: '— Відділ —',
+        score: function (search) {
+          var normalized = (search || '').replace(/[-‐-―]/g, ' ');
+          var scoreFn = this.getScoreFunction(normalized);
+          return function (item) { return scoreFn(item); };
+        },
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var list = document.getElementById('extra-teams-list');
+      var addBtn = document.getElementById('add-extra-team');
+      var tpl = document.getElementById('extra-team-template');
+      if (!list || !addBtn || !tpl) return;
+
+      list.querySelectorAll('.js-extra-team-dept').forEach(initExtraTeamSelect);
+
+      addBtn.addEventListener('click', function () {
+        var frag = tpl.content.cloneNode(true);
+        var row = frag.querySelector('.extra-team-row');
+        list.appendChild(frag);
+        initExtraTeamSelect(row.querySelector('.js-extra-team-dept'));
+      });
+
+      list.addEventListener('click', function (e) {
+        var btn = e.target.closest('.js-remove-extra-team');
+        if (!btn) return;
+        var row = btn.closest('.extra-team-row');
+        var sel = row.querySelector('.js-extra-team-dept');
+        if (sel && sel.tomselect) sel.tomselect.destroy();
+        row.remove();
+      });
+    });
+  })();
+</script>
+
+<div class="field">
   <label>Grade</label>
   <select name="grade" id="grade_select">
     <option value="junior" {% if not person or person.grade == "junior" %}selected{% endif %}>Junior</option>

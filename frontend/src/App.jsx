@@ -2252,6 +2252,13 @@ function App() {
                 justifyContent: 'space-between',
                 alignItems: 'flex-start',
                 gap: 20,
+                // Keep the header (with «Закрити») pinned while the card body scrolls.
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                background: lightMode ? '#FFFFFF' : '#0F172A',
+                borderTopLeftRadius: 28,
+                borderTopRightRadius: 28,
               }}
             >
               <div>

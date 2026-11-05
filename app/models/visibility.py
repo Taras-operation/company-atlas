@@ -116,6 +116,10 @@ class VisibilityChangeRequest(db.Model):
     comment = db.Column(db.Text)
     review_comment = db.Column(db.Text)
 
+    # Processed (approved/rejected) requests are archived so the pending queue
+    # stays clean; archived ones are viewable under a separate filter.
+    archived = db.Column(db.Boolean, default=False, nullable=False)
+
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow,

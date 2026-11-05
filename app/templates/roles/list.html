@@ -107,16 +107,41 @@
 <!-- Tab: Requests -->
 {% if can_review_visibility_requests %}
 <div id="tab-requests" class="tab-content" style="display:none">
+
+  <div class="req-toolbar">
+    <form id="bulk-form" method="post" action="{{ url_for('roles.bulk_approve_visibility_requests') }}"
+          style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:0;">
+      {% if not show_archived %}
+        <label class="req-selall"><input type="checkbox" id="select-all-reqs"> Обрати всі</label>
+        <button class="btn btn-primary" type="submit" name="scope" value="selected">Підтвердити вибрані</button>
+        <button class="btn btn-primary" type="submit" name="scope" value="all_pending"
+                onclick="return confirm('Підтвердити всі запити в очікуванні ({{ pending_count }})?');">
+          ✓ Усі в очікуванні ({{ pending_count }})
+        </button>
+      {% endif %}
+    </form>
+    {% if show_archived %}
+      <a class="btn btn-secondary" href="{{ url_for('roles.list_roles') }}">← До очікування</a>
+    {% else %}
+      <a class="btn btn-secondary" href="{{ url_for('roles.list_roles', archived=1) }}">Архів ({{ archived_count }})</a>
+    {% endif %}
+  </div>
+
   {% if requests %}
     <div style="display:grid; gap:14px;">
       {% for item in requests %}
         <div class="card" style="border-left: 4px solid {{ '#f59e0b' if item.status == 'pending' else ('#22c55e' if item.status == 'approved' else '#ef4444') }}">
 
           <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:20px; margin-bottom:12px;">
-            <div>
-              <div style="font-size:16px; font-weight:700;">{{ item.person.full_name }}</div>
-              <div class="muted" style="margin-top:4px; font-size:13px;">
-                Запросив: {{ item.requested_by.username if item.requested_by else '—' }}
+            <div style="display:flex; align-items:flex-start; gap:10px;">
+              {% if item.status == "pending" and not show_archived %}
+                <input type="checkbox" class="req-check" name="request_ids" value="{{ item.id }}" form="bulk-form" style="margin-top:4px; width:16px; height:16px;">
+              {% endif %}
+              <div>
+                <div style="font-size:16px; font-weight:700;">{{ item.person.full_name }}</div>
+                <div class="muted" style="margin-top:4px; font-size:13px;">
+                  Запросив: {{ item.requested_by.username if item.requested_by else '—' }}
+                </div>
               </div>
             </div>
             <div>
@@ -216,7 +241,7 @@
     </div>
   {% else %}
     <div class="card" style="color:#6b7280; text-align:center; padding:40px">
-      Запитів на зміну доступів немає
+      {% if show_archived %}Архів порожній{% else %}Немає запитів в очікуванні 🎉{% endif %}
     </div>
   {% endif %}
 </div>
@@ -348,6 +373,25 @@
 @media (max-width: 700px) {
   .changes-grid { grid-template-columns: 1fr; }
 }
+
+.req-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.req-selall {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+.req-selall input[type="checkbox"] { width: 16px; height: 16px; }
 </style>
 
 <script>
@@ -358,8 +402,18 @@ function switchTab(name) {
   document.getElementById('tab-btn-' + name).classList.add('active');
 }
 
-// Якщо є pending запити — одразу відкриваємо вкладку запитів
-{% if pending_count > 0 %}
+// «Обрати всі» — перемикає всі чекбокси запитів
+document.addEventListener('DOMContentLoaded', function() {
+  var selAll = document.getElementById('select-all-reqs');
+  if (selAll) {
+    selAll.addEventListener('change', function() {
+      document.querySelectorAll('.req-check').forEach(function(cb) { cb.checked = selAll.checked; });
+    });
+  }
+});
+
+// Якщо є pending запити (і ми не в архіві) — одразу відкриваємо вкладку запитів
+{% if pending_count > 0 and not show_archived %}
 document.addEventListener('DOMContentLoaded', function() {
   switchTab('requests');
 });

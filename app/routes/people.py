@@ -259,6 +259,71 @@ def _sync_department_lead_flag(person, is_department_lead):
         )
 
 
+# Openness ranking per scope field (higher = more access/visible).
+_OPENNESS_RANK = {
+    "brand_scope": {"none": 0, "selected": 1, "all": 2},
+    "geo_scope": {"none": 0, "selected": 1, "all": 2},
+    "department_scope": {"none": 0, "selected": 1, "all": 2},
+    "department_card_access": {"none": 0, "limited": 1, "full": 2},
+}
+
+
+def _is_reduction_only(person, request_payload):
+    """True when the requested visibility change only REDUCES access (or is a no-op).
+
+    Such changes are applied immediately without admin approval (#8). Conservative:
+    anything that could widen access — a boolean turned on, a scope moved to a more
+    open value, or any hide-list (visibility_*_ids) involvement — needs approval.
+    """
+    payload = request_payload or {}
+    # Hide-list changes can un-hide items (open), so they always need review.
+    if payload.get("visibility_brand_ids") or payload.get("visibility_geo_ids") or payload.get("visibility_department_ids"):
+        return False
+
+    for field, value in (payload.get("fields") or {}).items():
+        if field == "grade":
+            continue
+        if field in _OPENNESS_RANK:
+            ranks = _OPENNESS_RANK[field]
+            if ranks.get(value, 99) > ranks.get(getattr(person, field, None), -1):
+                return False  # scope opened up
+            continue
+        if not hasattr(person, field):
+            continue
+        if value is True and getattr(person, field) is False:
+            return False  # a boolean was turned on
+    return True
+
+
+def _sync_extra_teams(person, dept_ids_raw, positions):
+    """Additional teams the person leads/works in (besides the primary department).
+
+    Stored as DepartmentLead rows with lead_type='extra_lead' plus a per-team
+    position, so one person can be TL/manager of several teams (#3).
+    The dept_ids_raw and positions lists are index-aligned (one per form row).
+    """
+    DepartmentLead.query.filter_by(person_id=person.id, lead_type="extra_lead").delete()
+
+    seen = set()
+    for idx, raw in enumerate(dept_ids_raw):
+        try:
+            dep_id = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if not dep_id or dep_id == person.department_id or dep_id in seen:
+            continue
+        seen.add(dep_id)
+        pos = positions[idx].strip() if idx < len(positions) and positions[idx] else None
+        db.session.add(
+            DepartmentLead(
+                department_id=dep_id,
+                person_id=person.id,
+                lead_type="extra_lead",
+                position=pos,
+            )
+        )
+
+
 def _create_viewer_user_for_person(person):
     if not _is_admin():
         return False
@@ -473,6 +538,7 @@ def create_person():
             )
 
         _sync_department_lead_flag(person, request.form.get("is_department_lead") == "on")
+        _sync_extra_teams(person, request.form.getlist("extra_team_dept_id"), request.form.getlist("extra_team_position"))
 
         _create_viewer_user_for_person(person)
 
@@ -593,16 +659,22 @@ def edit_person(person_id):
                 "visibility_department_ids": request.form.getlist("visibility_department_ids", type=int),
             }
 
-            db.session.add(
-                VisibilityChangeRequest(
-                    person_id=person.id,
-                    requested_by_id=current_user.id,
-                    payload=request_payload,
-                    comment=request.form.get("visibility_comment") or None,
+            if _is_reduction_only(person, request_payload):
+                # Reductions don't need approval — apply right away (#8).
+                _apply_visibility_payload(person, visibility_payload)
+                normalize_visibility(person)
+                flash("Основні дані оновлено. Обмеження видимості застосовано автоматично.", "success")
+            else:
+                db.session.add(
+                    VisibilityChangeRequest(
+                        person_id=person.id,
+                        requested_by_id=current_user.id,
+                        payload=request_payload,
+                        comment=request.form.get("visibility_comment") or None,
+                    )
                 )
-            )
 
-            flash("Основні дані оновлено. Зміни видимості відправлено адміну на погодження.", "success")
+                flash("Основні дані оновлено. Зміни видимості відправлено адміну на погодження.", "success")
 
         _sync_person_links(
             person,
@@ -615,6 +687,7 @@ def edit_person(person_id):
         _apply_works_all_flags(person)
 
         _sync_department_lead_flag(person, request.form.get("is_department_lead") == "on")
+        _sync_extra_teams(person, request.form.getlist("extra_team_dept_id"), request.form.getlist("extra_team_position"))
 
         _update_viewer_user_for_person(person)
 

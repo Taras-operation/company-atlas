@@ -269,6 +269,26 @@ button.danger,
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Uniform sizing for the people filters so nothing stretches full-width
+   and placeholders don't wrap. They wrap to a new row only when truly narrow. */
+.filters > input[type="text"] {
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+.filters > select {
+  flex: 0 0 auto;
+  min-width: 150px;
+  width: auto;
+}
+.filters .js-filter-select + .ts-wrapper {
+  min-width: 170px;
+  flex: 0 0 auto;
+}
+.filters .ts-control {
+  white-space: nowrap;
 }
 
 .card ul {

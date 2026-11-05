@@ -159,6 +159,10 @@ def create_app() -> Flask:
                 "ALTER TABLE geos ADD COLUMN IF NOT EXISTS color VARCHAR(20)",
                 "ALTER TABLE people ADD COLUMN IF NOT EXISTS works_all_geos BOOLEAN NOT NULL DEFAULT FALSE",
                 "ALTER TABLE people ADD COLUMN IF NOT EXISTS works_all_brands BOOLEAN NOT NULL DEFAULT FALSE",
+                "ALTER TABLE department_leads ADD COLUMN IF NOT EXISTS position VARCHAR(150)",
+                "ALTER TABLE visibility_change_requests ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE",
+                # Already-processed requests move to archive so the pending queue is clean.
+                "UPDATE visibility_change_requests SET archived = TRUE WHERE status <> 'pending'",
             ]
             with engine.begin() as conn:
                 for stmt in statements:
