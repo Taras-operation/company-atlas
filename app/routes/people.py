@@ -72,7 +72,16 @@ def _can_access_person(person):
     if accessible_ids is None:
         return True
 
-    return person.department_id in accessible_ids
+    # department_id may be a raw form string ("1") before commit — coerce so it
+    # compares against the int ids in accessible_ids (otherwise scoped roles get
+    # silently denied, e.g. a TL couldn't grant visualization access).
+    dept_id = person.department_id
+    if dept_id is not None:
+        try:
+            dept_id = int(dept_id)
+        except (TypeError, ValueError):
+            return False
+    return dept_id in accessible_ids
 
 
 def _common_context(person=None):
@@ -324,7 +333,10 @@ def _sync_extra_teams(person, dept_ids_raw, positions):
 
 
 def _create_viewer_user_for_person(person):
-    if not _is_admin():
+    # Admins and scoped roles (TL/head_tl/operation) may grant visualization
+    # access to people within their scope — the calling routes already enforce
+    # department access, so gate on that rather than admin-only.
+    if not _can_access_person(person):
         return False
 
     if person.viewer_user:
@@ -369,7 +381,7 @@ def _create_viewer_user_for_person(person):
 
 
 def _update_viewer_user_for_person(person):
-    if not _is_admin():
+    if not _can_access_person(person):
         return
 
     if person.viewer_user:
@@ -885,11 +897,11 @@ def archive_person(person_id):
 @people_bp.route("/<int:person_id>/viewer-access/create", methods=["POST"])
 @login_required
 def create_viewer_access(person_id):
-    if not _is_admin():
+    person = Person.query.get_or_404(person_id)
+
+    if not _can_access_person(person):
         flash("Немає доступу", "danger")
         return redirect(url_for("people.detail_person", person_id=person_id))
-
-    person = Person.query.get_or_404(person_id)
 
     if person.viewer_user:
         flash("Viewer доступ вже існує", "warning")
@@ -934,11 +946,11 @@ def create_viewer_access(person_id):
 @people_bp.route("/<int:person_id>/viewer-access/toggle", methods=["POST"])
 @login_required
 def toggle_viewer_access(person_id):
-    if not _is_admin():
+    person = Person.query.get_or_404(person_id)
+
+    if not _can_access_person(person):
         flash("Немає доступу", "danger")
         return redirect(url_for("people.detail_person", person_id=person_id))
-
-    person = Person.query.get_or_404(person_id)
 
     if not person.viewer_user:
         flash("Viewer доступ не знайдено", "danger")
@@ -954,11 +966,11 @@ def toggle_viewer_access(person_id):
 @people_bp.route("/<int:person_id>/viewer-access/reset-password", methods=["POST"])
 @login_required
 def reset_viewer_password(person_id):
-    if not _is_admin():
+    person = Person.query.get_or_404(person_id)
+
+    if not _can_access_person(person):
         flash("Немає доступу", "danger")
         return redirect(url_for("people.detail_person", person_id=person_id))
-
-    person = Person.query.get_or_404(person_id)
 
     if not person.viewer_user:
         flash("Viewer доступ не знайдено", "danger")

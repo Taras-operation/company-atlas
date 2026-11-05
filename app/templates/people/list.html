@@ -82,14 +82,17 @@
     </thead>
     <tbody>
       {% for item in items %}
+        {% set lead_types = item.lead_departments | map(attribute='lead_type') | list %}
+        {% set is_lead = ('department_lead' in lead_types) or ('head' in lead_types) %}
         {% set field_map = [
           ('Посада', item.position),
           ('Telegram', item.telegram),
           ('Email', item.email),
           ('Телефон', item.phone),
           ('Зона відповідальності', item.responsibility_area),
-          ('Керівник', item.manager),
         ] %}
+        {# A department lead/head has no manager above them — don't count it as missing. #}
+        {% if not is_lead %}{{ field_map.append(('Керівник', item.manager)) or "" }}{% endif %}
         {% set missing = [] %}
         {% for label, val in field_map %}{% if not val %}{{ missing.append(label) or "" }}{% endif %}{% endfor %}
         {% set total = field_map | length %}
