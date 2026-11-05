@@ -146,6 +146,42 @@ FIELD_LABELS = {
     "chat_link": "Чат",
     "notes": "Нотатки",
     "responsibility_area": "Зона відповідальності",
+    # Visibility / visualization-access fields
+    "map_access": "Доступ до карти",
+    "map_show_connections": "Зв'язки на карті",
+    "brand_scope": "Бренди (обсяг)",
+    "geo_scope": "GEO (обсяг)",
+    "department_scope": "Відділи (обсяг)",
+    "department_card_access": "Доступ до картки відділу",
+    "card_show_short_description": "Картка: короткий опис",
+    "card_show_full_description": "Картка: повний опис",
+    "card_show_relations": "Картка: зв'язки відділу",
+    "show_department_people_count": "Кількість людей",
+    "show_department_leads": "Керівники / TL",
+    "show_department_lead_positions": "Посади керівників",
+    "show_department_people": "Люди відділу",
+    "show_department_people_positions": "Посади людей",
+    "show_department_people_responsibility": "Зони відповідальності",
+    "show_department_email": "Email відділу",
+    "show_department_telegram": "Telegram відділу",
+    "show_department_chat_link": "Chat link відділу",
+    "show_lead_contacts": "Контакти керівників",
+    "show_lead_email": "Email керівників",
+    "show_lead_telegram": "Telegram керівників",
+    "show_lead_reddy": "Reddy керівників",
+    "show_people_contacts": "Контакти людей",
+    "show_people_email": "Email людей",
+    "show_people_telegram": "Telegram людей",
+    "show_people_reddy": "Reddy людей",
+}
+
+# Readable values for enum-like fields.
+_VALUE_LABELS = {
+    "brand_scope": {"none": "Закрито", "selected": "Вибрані", "all": "Усі"},
+    "geo_scope": {"none": "Закрито", "selected": "Вибрані", "all": "Усі"},
+    "department_scope": {"none": "Закрито", "selected": "Вибрані", "all": "Усі"},
+    "department_card_access": {"none": "Закритий", "limited": "Частковий", "full": "Повний"},
+    "grade": {"junior": "Junior", "middle": "Middle", "senior": "Senior"},
 }
 
 _DEPT_KEYS = {"parent_department_id", "department_id", "department_from_id", "department_to_id"}
@@ -156,6 +192,10 @@ def _resolve_value(key, value):
     """Turn a stored raw value (often an id) into something readable."""
     if value is None or value == "":
         return "—"
+    if isinstance(value, bool):
+        return "Так" if value else "Ні"
+    if key in _VALUE_LABELS:
+        return _VALUE_LABELS[key].get(value, value)
     if key == "department_type_id":
         item = DepartmentType.query.get(value)
         return item.name if item else f"#{value}"

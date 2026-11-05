@@ -62,6 +62,25 @@ VISIBILITY_FIELDS = [
 ]
 
 
+# Basic person fields captured in the audit snapshot, on top of VISIBILITY_FIELDS.
+_AUDIT_BASIC_FIELDS = [
+    "full_name", "department_id", "position", "grade", "manager_id",
+    "email", "telegram", "phone", "responsibility_area",
+]
+
+
+def _person_snapshot(person):
+    """A dict of a person's auditable fields (basic + visibility) for before/after
+    diffing in the audit log, so visibility changes also show up, not only the
+    basic fields."""
+    snap = {}
+    for field in _AUDIT_BASIC_FIELDS:
+        snap[field] = getattr(person, field, None)
+    for field in VISIBILITY_FIELDS:
+        snap.setdefault(field, getattr(person, field, None))
+    return snap
+
+
 def _is_admin():
     return is_global_admin()
 
@@ -666,17 +685,7 @@ def edit_person(person_id):
     context = _common_context(person=person)
 
     if request.method == "POST":
-        old_data = {
-            "full_name": person.full_name,
-            "department_id": person.department_id,
-            "position": person.position,
-            "grade": person.grade,
-            "manager_id": person.manager_id,
-            "email": person.email,
-            "telegram": person.telegram,
-            "phone": person.phone,
-            "responsibility_area": person.responsibility_area,
-        }
+        old_data = _person_snapshot(person)
 
         full_name = request.form.get("full_name", "").strip()
 
@@ -771,17 +780,7 @@ def edit_person(person_id):
             entity_id=person.id,
             action="update",
             old_data=old_data,
-            new_data={
-                "full_name": person.full_name,
-                "department_id": person.department_id,
-                "position": person.position,
-                "grade": person.grade,
-                "manager_id": person.manager_id,
-                "email": person.email,
-                "telegram": person.telegram,
-                "phone": person.phone,
-                "responsibility_area": person.responsibility_area,
-            },
+            new_data=_person_snapshot(person),
         )
         db.session.commit()
 
