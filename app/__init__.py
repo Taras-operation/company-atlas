@@ -163,6 +163,13 @@ def create_app() -> Flask:
                 "ALTER TABLE visibility_change_requests ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE",
                 # Already-processed requests move to archive so the pending queue is clean.
                 "UPDATE visibility_change_requests SET archived = TRUE WHERE status <> 'pending'",
+                "ALTER TABLE viewer_users ADD COLUMN IF NOT EXISTS password_plain VARCHAR(255)",
+                # Clean up literal 'None' strings accidentally saved by the old form
+                # (a None value rendered as the text 'None' into the input).
+                "UPDATE people SET position = NULL WHERE position = 'None'",
+                "UPDATE people SET phone = NULL WHERE phone = 'None'",
+                "UPDATE people SET telegram = NULL WHERE telegram = 'None'",
+                "UPDATE people SET responsibility_area = NULL WHERE responsibility_area = 'None'",
             ]
             with engine.begin() as conn:
                 for stmt in statements:

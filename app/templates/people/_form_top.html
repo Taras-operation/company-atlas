@@ -5,7 +5,7 @@
 
 <div class="field">
   <label>Telegram</label>
-  <input type="text" name="telegram" value="{{ person.telegram if person else '' }}">
+  <input type="text" name="telegram" value="{{ (person.telegram or '') if person else '' }}">
 </div>
 
 <div class="field">
@@ -58,7 +58,7 @@
 
 <div class="field">
   <label>Reddy</label>
-  <input type="text" name="phone" value="{{ person.phone if person else '' }}">
+  <input type="text" name="phone" value="{{ (person.phone or '') if person else '' }}">
 </div>
 
 <div class="field">
@@ -77,7 +77,7 @@
 
 <div class="field">
   <label>Посада</label>
-  <input type="text" name="position" value="{{ person.position if person else '' }}">
+  <input type="text" name="position" value="{{ (person.position or '') if person else '' }}">
 </div>
 
 <div class="field">
@@ -271,7 +271,7 @@
 <div class="field full">
   <label>Зона відповідальності</label>
   <div class="rich-editor rich-editor-tall" data-target="responsibility_area">{{ person.responsibility_area|safe if person and person.responsibility_area else '' }}</div>
-  <textarea name="responsibility_area" style="display:none">{{ person.responsibility_area if person else '' }}</textarea>
+  <textarea name="responsibility_area" style="display:none">{{ (person.responsibility_area or '') if person else '' }}</textarea>
 </div>
 
 <script>

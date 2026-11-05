@@ -360,6 +360,7 @@ def _create_viewer_user_for_person(person):
     viewer_user = ViewerUser(
         username=username,
         password_hash=generate_password_hash(password, method="pbkdf2:sha256"),
+        password_plain=password,
         person_id=person.id,
         is_active_user=True,
     )
@@ -413,6 +414,7 @@ def _update_viewer_user_for_person(person):
                 new_password,
                 method="pbkdf2:sha256",
             )
+            person.viewer_user.password_plain = new_password
 
         return
 
@@ -922,6 +924,7 @@ def create_viewer_access(person_id):
     viewer_user = ViewerUser(
         username=username,
         password_hash=generate_password_hash(password, method="pbkdf2:sha256"),
+        password_plain=password,
         person_id=person.id,
     )
 
@@ -986,7 +989,38 @@ def reset_viewer_password(person_id):
         new_password,
         method="pbkdf2:sha256",
     )
+    person.viewer_user.password_plain = new_password
     db.session.commit()
 
     flash("Пароль viewer доступу оновлено", "success")
     return redirect(url_for("people.detail_person", person_id=person.id))
+
+
+@people_bp.route("/<int:person_id>/viewer-access/delete", methods=["POST"])
+@login_required
+def delete_viewer_access(person_id):
+    person = Person.query.get_or_404(person_id)
+
+    if not _can_access_person(person):
+        flash("Немає доступу", "danger")
+        return redirect(url_for("people.detail_person", person_id=person_id))
+
+    if not person.viewer_user:
+        flash("Viewer доступ не знайдено", "warning")
+        return redirect(url_for("people.detail_person", person_id=person.id))
+
+    viewer_id = person.viewer_user.id
+    username = person.viewer_user.username
+    db.session.delete(person.viewer_user)
+    db.session.commit()
+
+    log_action(
+        entity_type="viewer_user",
+        entity_id=viewer_id,
+        action="delete",
+        old_data={"username": username, "person_id": person.id},
+    )
+    db.session.commit()
+
+    flash("Доступ до візуалізації видалено", "success")
+    return redirect(url_for("people.edit_person", person_id=person.id))

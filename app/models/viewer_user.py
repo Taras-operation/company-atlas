@@ -12,6 +12,10 @@ class ViewerUser(UserMixin, db.Model):
 
     username = db.Column(db.String(120), nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    # Plain copy of the viewer password so an admin/TL can look it up and tell
+    # the user (these are low-privilege, read-only visualization logins). Only
+    # set for passwords created/changed after this was added; older ones are NULL.
+    password_plain = db.Column(db.String(255))
 
     person_id = db.Column(
         db.Integer,
