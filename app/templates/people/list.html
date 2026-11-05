@@ -88,9 +88,20 @@
     </thead>
     <tbody>
       {% for item in items %}
-        {% set fields = [item.position, item.telegram, item.email, item.phone, item.short_description, item.responsibility_area, item.avatar, item.manager] %}
-        {% set filled = fields | reject('none') | reject('equalto', '') | list | length %}
-        {% set total = fields | length %}
+        {% set field_map = [
+          ('Посада', item.position),
+          ('Telegram', item.telegram),
+          ('Email', item.email),
+          ('Телефон', item.phone),
+          ('Короткий опис', item.short_description),
+          ('Зона відповідальності', item.responsibility_area),
+          ('Фото', item.avatar),
+          ('Керівник', item.manager),
+        ] %}
+        {% set missing = [] %}
+        {% for label, val in field_map %}{% if not val %}{{ missing.append(label) or "" }}{% endif %}{% endfor %}
+        {% set total = field_map | length %}
+        {% set filled = total - (missing | length) %}
         {% set pct = (filled * 100 // total) %}
         <tr>
           <td data-col="name"><a href="{{ url_for('people.detail_person', person_id=item.id) }}"><strong>{{ item.full_name }}</strong></a></td>
@@ -101,11 +112,19 @@
           <td data-col="telegram">{{ item.telegram or "—" }}</td>
           <td data-col="email">{{ (item.email.split('\n')[0] if item.email else "") or "—" }}</td>
           <td data-col="completeness">
-            <div class="fill-cell" title="Заповнено {{ filled }} з {{ total }} полів">
+            <div class="fill-cell" tabindex="0">
               <div class="fill-bar">
                 <div class="fill-bar-in {{ 'is-low' if pct < 40 else ('is-mid' if pct < 75 else 'is-high') }}" style="width: {{ pct }}%;"></div>
               </div>
               <span class="fill-txt">{{ filled }}/{{ total }}</span>
+              <div class="fill-pop">
+                {% if missing %}
+                  <strong>Не заповнено ({{ missing | length }}):</strong>
+                  <ul>{% for m in missing %}<li>{{ m }}</li>{% endfor %}</ul>
+                {% else %}
+                  <strong class="fill-ok">Все заповнено ✓</strong>
+                {% endif %}
+              </div>
             </div>
           </td>
           <td data-col="access">
@@ -154,7 +173,19 @@
           var scoreFn = this.getScoreFunction(normalized);
           return function (item) { return scoreFn(item); };
         },
+        // Open with an empty search box (ready to type) instead of showing the
+        // current selection text, so you can just start typing.
+        onDropdownOpen: function () {
+          this.setTextboxValue('');
+          this.refreshOptions(false);
+        },
+        // Choosing an option (by click OR by pressing Enter on a match) applies
+        // the filter immediately — no extra «Знайти» click needed.
+        onChange: function () {
+          if (el.dataset.ready === '1' && el.form) el.form.submit();
+        },
       });
+      el.dataset.ready = '1';
     });
   });
 
@@ -241,7 +272,17 @@
   .cols-dropdown strong { display: block; font-size: 12px; color: #475467; margin-bottom: 8px; }
   .cols-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 14px; cursor: pointer; }
   .cols-row input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; display: inline-block; }
-  .fill-cell { display: flex; align-items: center; gap: 8px; }
+  .fill-cell { display: flex; align-items: center; gap: 8px; position: relative; cursor: default; outline: none; }
+  .fill-pop {
+    position: absolute; left: 0; top: calc(100% + 6px); z-index: 60; min-width: 170px;
+    background: #fff; border: 1px solid #d0d5dd; border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(15,23,42,.14); padding: 8px 12px; display: none;
+  }
+  .fill-cell:hover .fill-pop, .fill-cell:focus-within .fill-pop { display: block; }
+  .fill-pop strong { font-size: 12px; color: #344054; display: block; }
+  .fill-pop strong.fill-ok { color: #15803d; }
+  .fill-pop ul { margin: 6px 0 0; padding-left: 16px; }
+  .fill-pop li { font-size: 12px; color: #475467; line-height: 1.5; }
   .fill-bar { width: 72px; height: 8px; border-radius: 999px; background: #e9edf3; overflow: hidden; flex: 0 0 auto; }
   .fill-bar-in { height: 100%; border-radius: 999px; }
   .fill-bar-in.is-low { background: #ef4444; }

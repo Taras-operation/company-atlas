@@ -1,5 +1,6 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import case
 from werkzeug.security import generate_password_hash
 
 from app.extensions import db
@@ -268,31 +269,29 @@ _OPENNESS_RANK = {
 }
 
 
-def _is_reduction_only(person, request_payload):
-    """True when the requested visibility change only REDUCES access (or is a no-op).
+_SCOPE_FIELDS = ("brand_scope", "geo_scope", "department_scope")
 
-    Such changes are applied immediately without admin approval (#8). Conservative:
-    anything that could widen access — a boolean turned on, a scope moved to a more
-    open value, or any hide-list (visibility_*_ids) involvement — needs approval.
+
+def _needs_admin_approval(person, request_payload):
+    """True only when a scoped (non-admin) editor WIDENS the visualization's own
+    scope — brand / geo / department scope moved to a more permissive value (#9).
+
+    Everything else a TL sets on a person — giving/removing map access, the card
+    access level, and all the show_* toggles — applies immediately on save. The
+    single thing that still needs an admin sign-off is expanding how much of the
+    map/org a viewer can see (the scope).
     """
     payload = request_payload or {}
-    # Hide-list changes can un-hide items (open), so they always need review.
-    if payload.get("visibility_brand_ids") or payload.get("visibility_geo_ids") or payload.get("visibility_department_ids"):
-        return False
-
-    for field, value in (payload.get("fields") or {}).items():
-        if field == "grade":
+    fields = payload.get("fields") or {}
+    for field in _SCOPE_FIELDS:
+        if field not in fields:
             continue
-        if field in _OPENNESS_RANK:
-            ranks = _OPENNESS_RANK[field]
-            if ranks.get(value, 99) > ranks.get(getattr(person, field, None), -1):
-                return False  # scope opened up
-            continue
-        if not hasattr(person, field):
-            continue
-        if value is True and getattr(person, field) is False:
-            return False  # a boolean was turned on
-    return True
+        ranks = _OPENNESS_RANK[field]
+        new_rank = ranks.get(fields.get(field), 99)
+        cur_rank = ranks.get(getattr(person, field, None), -1)
+        if new_rank > cur_rank:
+            return True  # scope opened up — needs approval
+    return False
 
 
 def _sync_extra_teams(person, dept_ids_raw, positions):
@@ -408,6 +407,29 @@ def _update_viewer_user_for_person(person):
     _create_viewer_user_for_person(person)
 
 
+def _department_subtree_ordered(root_id):
+    """Root department + all its descendants, in breadth-first order
+    (root first, then its sub-departments, then theirs). Used so a filter by a
+    department shows that department AND its sub-departments, grouped together
+    rather than scattered (#3)."""
+    ordered = [root_id]
+    seen = {root_id}
+    queue = [root_id]
+    while queue:
+        parent_id = queue.pop(0)
+        children = (
+            Department.query.filter_by(parent_department_id=parent_id, is_archived=False)
+            .order_by(Department.name.asc())
+            .all()
+        )
+        for child in children:
+            if child.id not in seen:
+                seen.add(child.id)
+                ordered.append(child.id)
+                queue.append(child.id)
+    return ordered
+
+
 @people_bp.route("")
 @login_required
 def list_people():
@@ -423,8 +445,12 @@ def list_people():
         query = query.filter(Person.full_name.ilike(f"%{search}%"))
 
     department_id = request.args.get("department_id", "").strip()
+    dept_subtree_order = []  # dept ids in display order when a dept filter is active
     if department_id:
-        query = query.filter(Person.department_id == int(department_id))
+        dept_subtree_order = _department_subtree_ordered(int(department_id))
+        if accessible_ids is not None:
+            dept_subtree_order = [d for d in dept_subtree_order if d in accessible_ids]
+        query = query.filter(Person.department_id.in_(dept_subtree_order or [int(department_id)]))
 
     grade = request.args.get("grade", "").strip()
     if grade:
@@ -456,11 +482,18 @@ def list_people():
     direction = request.args.get("dir", "asc").strip()
     if sort == "position":
         primary = Person.position.asc() if direction != "desc" else Person.position.desc()
-        order_by = (primary, Person.full_name.asc())
+        order_by = [primary, Person.full_name.asc()]
     else:
         sort = "full_name"
         primary = Person.full_name.asc() if direction != "desc" else Person.full_name.desc()
-        order_by = (primary,)
+        order_by = [primary]
+
+    # When filtered by a department, group its sub-departments together (root
+    # first, then sub-departments in order) and apply the chosen sort within each.
+    if dept_subtree_order and len(dept_subtree_order) > 1:
+        whens = {dep_id: idx for idx, dep_id in enumerate(dept_subtree_order)}
+        dept_order = case(whens, value=Person.department_id, else_=len(dept_subtree_order))
+        order_by = [dept_order] + order_by
 
     page = request.args.get("page", 1, type=int)
     pagination = query.order_by(*order_by).paginate(page=page, per_page=25, error_out=False)
@@ -659,12 +692,8 @@ def edit_person(person_id):
                 "visibility_department_ids": request.form.getlist("visibility_department_ids", type=int),
             }
 
-            if _is_reduction_only(person, request_payload):
-                # Reductions don't need approval — apply right away (#8).
-                _apply_visibility_payload(person, visibility_payload)
-                normalize_visibility(person)
-                flash("Основні дані оновлено. Обмеження видимості застосовано автоматично.", "success")
-            else:
+            if _needs_admin_approval(person, request_payload):
+                # Only WIDENING the map/org scope needs an admin sign-off (#9).
                 db.session.add(
                     VisibilityChangeRequest(
                         person_id=person.id,
@@ -674,7 +703,18 @@ def edit_person(person_id):
                     )
                 )
 
-                flash("Основні дані оновлено. Зміни видимості відправлено адміну на погодження.", "success")
+                flash("Основні дані оновлено. Розширення видимості карти відправлено адміну на погодження.", "warning")
+            else:
+                # Everything else a TL sets applies immediately on save (#9).
+                _apply_visibility_payload(person, visibility_payload)
+                normalize_visibility(person)
+                _sync_visibility_scope_links(
+                    person,
+                    request.form.getlist("visibility_brand_ids", type=int),
+                    request.form.getlist("visibility_geo_ids", type=int),
+                    request.form.getlist("visibility_department_ids", type=int),
+                )
+                flash("Дані та видимість оновлено.", "success")
 
         _sync_person_links(
             person,

@@ -13,6 +13,7 @@ from app.models import (
 )
 from app.utils.audit import log_action
 from app.utils.access import get_accessible_department_ids, is_global_admin
+from app.utils.visibility import normalize_visibility
 
 
 roles_bp = Blueprint("roles", __name__, url_prefix="/roles")
@@ -205,6 +206,10 @@ def _apply_visibility_request(item, reviewer, comment=None):
         payload.get("visibility_geo_ids", []),
         payload.get("visibility_department_ids", []),
     )
+
+    # Reconcile dependent flags (e.g. map_access gating card toggles) so an
+    # approved request actually takes effect, same as a direct admin edit.
+    normalize_visibility(person)
 
     item.status = "approved"
     item.reviewed_by_id = reviewer.id
