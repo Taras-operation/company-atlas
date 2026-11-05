@@ -11,14 +11,11 @@
   <form method="get" class="filters">
     <input type="text" name="search" placeholder="Пошук по імені..." value="{{ request.args.get('search', '') }}">
 
-    <select name="department_id" class="js-filter-select" data-placeholder="Всі відділи">
-      <option value="">Всі відділи</option>
-      {% for dept in departments %}
-        <option value="{{ dept.id }}" {% if request.args.get('department_id') == dept.id|string %}selected{% endif %}>
-          {{ dept.name }}
-        </option>
-      {% endfor %}
-    </select>
+    <input type="text" name="department_q" list="dept-options" autocomplete="off"
+           placeholder="Відділ (напр. опер)" value="{{ request.args.get('department_q', '') }}">
+    <datalist id="dept-options">
+      {% for dept in departments %}<option value="{{ dept.name }}"></option>{% endfor %}
+    </datalist>
 
     <select name="grade">
       <option value="">Всі грейди</option>
@@ -29,20 +26,17 @@
       {% endfor %}
     </select>
 
-    <select name="position" class="js-filter-select" data-placeholder="Всі посади">
-      <option value="">Всі посади</option>
-      {% for p in positions %}
-        <option value="{{ p }}" {% if request.args.get('position') == p %}selected{% endif %}>
-          {{ p }}
-        </option>
-      {% endfor %}
-    </select>
+    <input type="text" name="position_q" list="position-options" autocomplete="off"
+           placeholder="Посада (напр. менедж)" value="{{ request.args.get('position_q', '') }}">
+    <datalist id="position-options">
+      {% for p in positions %}<option value="{{ p }}"></option>{% endfor %}
+    </datalist>
 
     <input type="hidden" name="sort" value="{{ sort }}">
     <input type="hidden" name="dir" value="{{ direction }}">
 
     <button class="btn btn-primary" type="submit">Знайти</button>
-    {% if request.args.get('search') or request.args.get('department_id') or request.args.get('grade') or request.args.get('position') %}
+    {% if request.args.get('search') or request.args.get('department_q') or request.args.get('grade') or request.args.get('position_q') %}
       <a href="{{ url_for('people.list_people') }}" class="btn btn-secondary">Скинути</a>
     {% endif %}
   </form>
@@ -50,7 +44,7 @@
 
 <div class="card">
   {% set base_args = {} %}
-  {% for k in ['search', 'department_id', 'grade', 'position'] %}
+  {% for k in ['search', 'department_q', 'grade', 'position_q'] %}
     {% if request.args.get(k) %}{% set _ = base_args.update({k: request.args.get(k)}) %}{% endif %}
   {% endfor %}
   {% macro sort_link(key, label) %}
@@ -93,9 +87,7 @@
           ('Telegram', item.telegram),
           ('Email', item.email),
           ('Телефон', item.phone),
-          ('Короткий опис', item.short_description),
           ('Зона відповідальності', item.responsibility_area),
-          ('Фото', item.avatar),
           ('Керівник', item.manager),
         ] %}
         {% set missing = [] %}
@@ -156,39 +148,6 @@
 
 {% block scripts %}
 <script>
-  // Make the «Відділ» / «Посада» filters searchable — type 2–3 letters instead
-  // of scrolling the whole list. Single-select TomSelect with search.
-  document.addEventListener('DOMContentLoaded', function () {
-    if (typeof TomSelect === 'undefined') return;
-    document.querySelectorAll('.js-filter-select').forEach(function (el) {
-      if (el.tomselect) return;
-      new TomSelect(el, {
-        create: false,
-        persist: false,
-        maxOptions: 1000,
-        allowEmptyOption: true,
-        placeholder: el.dataset.placeholder || 'Оберіть',
-        score: function (search) {
-          var normalized = (search || '').replace(/[-‐-―]/g, ' ');
-          var scoreFn = this.getScoreFunction(normalized);
-          return function (item) { return scoreFn(item); };
-        },
-        // Open with an empty search box (ready to type) instead of showing the
-        // current selection text, so you can just start typing.
-        onDropdownOpen: function () {
-          this.setTextboxValue('');
-          this.refreshOptions(false);
-        },
-        // Choosing an option (by click OR by pressing Enter on a match) applies
-        // the filter immediately — no extra «Знайти» click needed.
-        onChange: function () {
-          if (el.dataset.ready === '1' && el.form) el.form.submit();
-        },
-      });
-      el.dataset.ready = '1';
-    });
-  });
-
   // ── Column visibility (per-browser, saved in localStorage) ──────────────
   (function () {
     var STORAGE_KEY = 'atlas_people_hidden_cols';

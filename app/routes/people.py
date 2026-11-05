@@ -444,21 +444,40 @@ def list_people():
     if search:
         query = query.filter(Person.full_name.ilike(f"%{search}%"))
 
-    department_id = request.args.get("department_id", "").strip()
+    # Department filter is a NAME SUBSTRING search: typing "опер" matches EVERY
+    # department whose name contains it (e.g. "Operation team", "Operation
+    # marketing team"), and each match pulls in its whole sub-tree. Results are
+    # grouped match-by-match (root then its sub-depts) rather than scattered (#3).
+    department_q = request.args.get("department_q", "").strip()
     dept_subtree_order = []  # dept ids in display order when a dept filter is active
-    if department_id:
-        dept_subtree_order = _department_subtree_ordered(int(department_id))
+    if department_q:
+        matched_q = Department.query.filter(
+            Department.is_archived == False,  # noqa: E712
+            Department.name.ilike(f"%{department_q}%"),
+        )
         if accessible_ids is not None:
-            dept_subtree_order = [d for d in dept_subtree_order if d in accessible_ids]
-        query = query.filter(Person.department_id.in_(dept_subtree_order or [int(department_id)]))
+            matched_q = matched_q.filter(Department.id.in_(accessible_ids))
+        matched_roots = matched_q.order_by(Department.name.asc()).all()
+
+        seen = set()
+        for root in matched_roots:
+            for did in _department_subtree_ordered(root.id):
+                if accessible_ids is not None and did not in accessible_ids:
+                    continue
+                if did not in seen:
+                    seen.add(did)
+                    dept_subtree_order.append(did)
+        # No name match → empty result (sentinel id that can't exist).
+        query = query.filter(Person.department_id.in_(dept_subtree_order or [-1]))
 
     grade = request.args.get("grade", "").strip()
     if grade:
         query = query.filter(Person.grade == grade)
 
-    position = request.args.get("position", "").strip()
-    if position:
-        query = query.filter(Person.position == position)
+    # Position filter is also a substring search (type a few letters + Enter).
+    position_q = request.args.get("position_q", "").strip()
+    if position_q:
+        query = query.filter(Person.position.ilike(f"%{position_q}%"))
 
     # Departments for filter dropdown (respect TL scope)
     dept_query = Department.query.filter_by(is_archived=False)
