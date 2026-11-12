@@ -151,7 +151,9 @@ def _collect_visibility_payload():
         "brand_scope": request.form.get("brand_scope") or "all",
         "geo_scope": request.form.get("geo_scope") or "all",
         "department_scope": request.form.get("department_scope") or "all",
-        "department_card_access": request.form.get("department_card_access") or "limited",
+        # Access levels are retired — everyone stays on the pass-through "limited"
+        # so the per-toggle checkboxes are the sole control.
+        "department_card_access": "limited",
         "card_show_short_description": _checkbox("card_show_short_description"),
         "card_show_full_description": _checkbox("card_show_full_description"),
         "card_show_relations": _checkbox("card_show_relations"),
@@ -301,16 +303,20 @@ _SCOPE_FIELDS = ("brand_scope", "geo_scope", "department_scope")
 
 
 def _needs_admin_approval(person, request_payload):
-    """True only when a scoped (non-admin) editor WIDENS the visualization's own
-    scope — brand / geo / department scope moved to a more permissive value (#9).
+    """True when a scoped (non-admin) editor's change needs an admin sign-off.
 
-    Everything else a TL sets on a person — giving/removing map access, the card
-    access level, and all the show_* toggles — applies immediately on save. The
-    single thing that still needs an admin sign-off is expanding how much of the
-    map/org a viewer can see (the scope).
+    Two cases need approval:
+      1. Widening the map scope — brand / geo / department scope to a more
+         permissive value.
+      2. Turning ON a visibility toggle that the person's GRADE PRESET has OFF
+         (going above the ceiling). A TL may freely turn toggles OFF, and may
+         re-enable toggles that are within the preset, without approval.
     """
+    from app.utils.grade_presets import preset_for_grade, fields_exceeding_preset
+
     payload = request_payload or {}
     fields = payload.get("fields") or {}
+
     for field in _SCOPE_FIELDS:
         if field not in fields:
             continue
@@ -319,6 +325,18 @@ def _needs_admin_approval(person, request_payload):
         cur_rank = ranks.get(getattr(person, field, None), -1)
         if new_rank > cur_rank:
             return True  # scope opened up — needs approval
+
+    # A toggle turned ON that both the preset forbids AND the person didn't
+    # already have on = going above the grade ceiling → needs approval.
+    preset = preset_for_grade(fields.get("grade") or person.grade)
+    newly_on = {
+        f: v
+        for f, v in fields.items()
+        if v is True and not getattr(person, f, False)
+    }
+    if fields_exceeding_preset(preset, newly_on):
+        return True
+
     return False
 
 
@@ -599,7 +617,10 @@ def create_person():
             _apply_visibility_payload(person, _collect_visibility_payload())
             normalize_visibility(person)
         else:
+            # A TL-created person starts at their grade's ceiling (preset).
             person.grade = request.form.get("grade") or "junior"
+            from app.utils.grade_presets import preset_for_grade, seed_person_from_preset
+            seed_person_from_preset(person, preset_for_grade(person.grade))
 
         db.session.add(person)
         db.session.commit()

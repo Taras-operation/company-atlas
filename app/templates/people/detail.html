@@ -63,23 +63,13 @@
     <p class="muted" style="margin-top:0;">Що саме ця людина бачить у візуалізації / картках відділів (налаштовується в «Редагувати»).</p>
 
     {% set scope_labels = {"all": "Всі", "selected": "Вибірково", "none": "Нічого"} %}
-    {% set card_labels = {"full": "Повний доступ", "limited": "Частково обмежений доступ", "none": "Закритий доступ"} %}
     {% set open_rows = visibility_rows | selectattr(1) | list %}
     {% set closed_rows = visibility_rows | rejectattr(1) | list %}
 
-    {% if person.department_card_access == "full" %}
-      <div style="background:#dcfce7;color:#166534;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
-        <strong>Повний доступ:</strong> у картці відділу відкрито все.
-      </div>
-    {% elif person.department_card_access == "none" %}
-      <div style="background:#fee2e2;color:#991b1b;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
-        <strong>Закритий доступ:</strong> у картці видно лише короткий і повний опис, решту приховано.
-      </div>
-    {% else %}
-      <div style="background:#eef2ff;color:#3730a3;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
-        <strong>Частково обмежений доступ:</strong> у картці видно саме те, що відмічено нижче.
-      </div>
-    {% endif %}
+    <div style="background:#eef2ff;color:#3730a3;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
+      У картці видно саме те, що відмічено нижче. Базовий набір задається пресетом грейду
+      <strong>{{ person.grade|capitalize }}</strong> (Налаштування → «Доступи за грейдами»).
+    </div>
 
     <div style="font-size:13px;line-height:1.7;margin-bottom:8px;">
       <div>Бренди: <strong>{{ scope_labels.get(person.brand_scope, person.brand_scope) }}</strong>{% if person.brand_scope == 'selected' %} <span class="muted">(приховано: {{ person.visibility_brand_links|length }})</span>{% endif %}

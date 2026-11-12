@@ -170,6 +170,26 @@ def create_app() -> Flask:
                 "UPDATE people SET phone = NULL WHERE phone = 'None'",
                 "UPDATE people SET telegram = NULL WHERE telegram = 'None'",
                 "UPDATE people SET responsibility_area = NULL WHERE responsibility_area = 'None'",
+                # Retire access levels: materialize what each level actually showed
+                # into the per-toggle checkboxes, then put everyone on the
+                # pass-through 'limited' so the checkboxes are the sole control.
+                # Idempotent: after the first run nobody is 'full'/'none' anymore.
+                ("UPDATE people SET "
+                 "card_show_short_description=true, card_show_full_description=true, card_show_relations=true, "
+                 "show_department_people_count=true, show_department_leads=true, show_department_lead_positions=true, "
+                 "show_department_people=true, show_department_people_positions=true, show_department_people_responsibility=true, "
+                 "show_department_email=true, show_department_telegram=true, show_department_chat_link=true, "
+                 "show_lead_contacts=true, show_lead_email=true, show_lead_telegram=true, show_lead_reddy=true, "
+                 "show_people_contacts=true, show_people_email=true, show_people_telegram=true, show_people_reddy=true "
+                 "WHERE department_card_access='full'"),
+                ("UPDATE people SET "
+                 "show_department_people_count=false, show_department_leads=false, show_department_lead_positions=false, "
+                 "show_department_people=false, show_department_people_positions=false, show_department_people_responsibility=false, "
+                 "show_department_email=false, show_department_telegram=false, show_department_chat_link=false, "
+                 "show_lead_contacts=false, show_lead_email=false, show_lead_telegram=false, show_lead_reddy=false, "
+                 "show_people_contacts=false, show_people_email=false, show_people_telegram=false, show_people_reddy=false "
+                 "WHERE department_card_access='none'"),
+                "UPDATE people SET department_card_access='limited' WHERE department_card_access <> 'limited'",
             ]
             with engine.begin() as conn:
                 for stmt in statements:

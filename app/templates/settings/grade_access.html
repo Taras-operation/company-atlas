@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Доступи за грейдами{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Доступи за грейдами</h1>
+  <a href="{{ url_for('settings.index') }}" class="btn btn-secondary">← Налаштування</a>
+</div>
+
+<div class="card full">
+  <p class="muted" style="margin-top:0;">
+    Налаштуй в одному місці, що бачить кожен грейд у візуалізації. Пресет — це
+    <strong>стеля доступу</strong>: при збереженні з людей цього грейду <strong>знімається</strong> те,
+    що ти тут вимкнув, але <strong>не додається</strong> те, що ТЛ раніше прибрав вручну.
+    ТЛ може зняти галочку сам, а щоб увімкнути те, чого немає в пресеті — потрібне погодження адміна.
+  </p>
+</div>
+
+{% set groups = [
+  ('Карта', [
+    ('map_access', 'Бачить загальну карту / візуалізацію'),
+    ('map_show_connections', 'Бачить зв’язки між відділами'),
+  ]),
+  ('Контент картки відділу', [
+    ('card_show_short_description', 'Короткий опис відділу'),
+    ('card_show_full_description', 'Повний опис і функціонал'),
+    ('card_show_relations', 'Зв’язані відділи'),
+  ]),
+  ('Команда відділу', [
+    ('show_department_people_count', 'Кількість людей'),
+    ('show_department_leads', 'Керівники / TL / Head'),
+    ('show_department_lead_positions', 'Посади керівників'),
+    ('show_department_people', 'Люди відділу'),
+    ('show_department_people_positions', 'Посади людей'),
+    ('show_department_people_responsibility', 'Зони відповідальності людей'),
+  ]),
+  ('Контакти відділу', [
+    ('show_department_email', 'Email відділу'),
+    ('show_department_telegram', 'Telegram відділу'),
+    ('show_department_chat_link', 'Chat link відділу'),
+  ]),
+  ('Контакти керівників / TL', [
+    ('show_lead_contacts', 'Контакти керівників / TL'),
+    ('show_lead_email', 'Email керівників'),
+    ('show_lead_telegram', 'Telegram керівників'),
+    ('show_lead_reddy', 'Reddy керівників'),
+  ]),
+  ('Контакти людей відділу', [
+    ('show_people_contacts', 'Контакти людей'),
+    ('show_people_email', 'Email людей'),
+    ('show_people_telegram', 'Telegram людей'),
+    ('show_people_reddy', 'Reddy людей'),
+  ]),
+] %}
+
+{% for grade in grades %}
+  {% set p = presets[grade] %}
+  <details class="card full grade-preset" {% if loop.first %}open{% endif %}>
+    <summary>
+      <span class="grade-title">{{ grade_labels[grade] }}</span>
+      <span class="grade-count">застосується до {{ counts[grade] }} людей</span>
+    </summary>
+
+    <form method="post" class="grade-form"
+          onsubmit="return confirm('Застосувати пресет «{{ grade_labels[grade] }}» до всіх {{ counts[grade] }} людей цього грейду? Ручні зміни на їхніх картках буде перезаписано.');">
+      <input type="hidden" name="grade" value="{{ grade }}">
+
+      <div class="grade-groups">
+        {% for group_title, fields in groups %}
+          <div class="grade-group">
+            <h4>{{ group_title }}</h4>
+            {% for field, label in fields %}
+              <label class="checkbox-row">
+                <input type="checkbox" name="{{ field }}" {% if p[field] %}checked{% endif %}>
+                {{ label }}
+              </label>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="actions" style="margin-top:16px;">
+        <button type="submit" class="btn btn-primary">Зберегти та застосувати до всіх ({{ counts[grade] }})</button>
+      </div>
+    </form>
+  </details>
+{% endfor %}
+
+<style>
+  .grade-preset { margin-bottom: 16px; }
+  .grade-preset > summary {
+    cursor: pointer; display: flex; align-items: center; gap: 14px;
+    font-weight: 700; font-size: 18px; list-style: none;
+  }
+  .grade-preset > summary::-webkit-details-marker { display: none; }
+  .grade-preset > summary::before { content: '▸'; font-size: 14px; opacity: .6; }
+  .grade-preset[open] > summary::before { content: '▾'; }
+  .grade-title { color: #0f172a; }
+  .grade-count { font-size: 13px; font-weight: 500; color: #667085; }
+  .grade-form { margin-top: 16px; }
+  .grade-scopes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .grade-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+  .grade-group h4 { margin: 0 0 8px; font-size: 14px; color: #344054; }
+  .grade-group .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 14px; }
+  .grade-group .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; flex: 0 0 auto; margin: 0; }
+</style>
+{% endblock %}

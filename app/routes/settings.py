@@ -55,6 +55,64 @@ def index():
     return render_template("settings/index.html")
 
 
+@settings_bp.route("/grade-access", methods=["GET", "POST"])
+def grade_access():
+    from app.utils.grade_presets import (
+        GRADES,
+        GRADE_LABELS,
+        PRESET_BOOL_FIELDS,
+        get_or_seed_presets,
+        apply_preset_to_grade,
+    )
+
+    presets = get_or_seed_presets()
+
+    if request.method == "POST":
+        grade = request.form.get("grade", "").strip()
+        if grade not in GRADES:
+            flash("Невідомий грейд", "danger")
+            return redirect(url_for("settings.grade_access"))
+
+        preset = presets[grade]
+
+        # The preset is just the set of visibility toggles (the ceiling).
+        for field in PRESET_BOOL_FIELDS:
+            setattr(preset, field, bool(request.form.get(field)))
+
+        db.session.commit()
+
+        affected = apply_preset_to_grade(grade, preset)
+        db.session.commit()
+
+        log_action(
+            entity_type="grade_preset",
+            entity_id=preset.id,
+            action="update",
+            new_data={"grade": grade, "applied_to_people": affected},
+        )
+        db.session.commit()
+
+        flash(
+            f"Збережено пресет «{GRADE_LABELS.get(grade, grade)}» і застосовано до {affected} людей.",
+            "success",
+        )
+        return redirect(url_for("settings.grade_access"))
+
+    # People count per grade (for the "applies to N people" hint).
+    counts = {}
+    for grade in GRADES:
+        counts[grade] = Person.query.filter_by(is_archived=False, grade=grade).count()
+
+    return render_template(
+        "settings/grade_access.html",
+        grades=GRADES,
+        grade_labels=GRADE_LABELS,
+        presets=presets,
+        counts=counts,
+        bool_fields=PRESET_BOOL_FIELDS,
+    )
+
+
 @settings_bp.route("/brands", methods=["GET", "POST"])
 def brands():
     if request.method == "POST":

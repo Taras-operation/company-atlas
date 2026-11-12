@@ -15,6 +15,7 @@ from .admin_user import AdminUser, VisualizationUser
 from .viewer_user import ViewerUser
 from .audit import AuditLog
 from .map_layout import MapLayout
+from .grade_access_preset import GradeAccessPreset
 
 __all__ = [
     "DepartmentType",
@@ -44,4 +45,5 @@ __all__ = [
     "AuditLog",
     "VisibilityChangeRequest",
     "MapLayout",
+    "GradeAccessPreset",
 ]

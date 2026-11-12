@@ -86,18 +86,6 @@
   </div>
 </div>
 
-<div class="field">
-  <label>Доступ до картки відділу</label>
-  <select name="department_card_access" id="department_card_access">
-    <option value="none" {% if person and person.department_card_access == "none" %}selected{% endif %}>Закритий доступ</option>
-    <option value="limited" {% if not person or person.department_card_access == "limited" %}selected{% endif %}>Частково обмежений доступ</option>
-    <option value="full" {% if person and person.department_card_access == "full" %}selected{% endif %}>Повний доступ</option>
-  </select>
-  <p class="visibility-help">
-    <span class="visibility-info" title="Закритий доступ вимикає деталізацію картки. Частковий доступ дозволяє вибрати окремі блоки. Повний доступ відкриває всі основні дані картки.">ⓘ</span>
-    Рівень доступу керує доступністю нижніх чекбоксів картки.
-  </p>
-</div>
 
 <div class="field full">
   <div class="visibility-groups-grid">

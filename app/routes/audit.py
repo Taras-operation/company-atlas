@@ -45,6 +45,7 @@ ENTITY_LABELS = {
     "department": "відділ",
     "relation": "зв’язок",
     "visibility_request": "запит доступу",
+    "grade_preset": "пресет грейду",
 }
 
 
