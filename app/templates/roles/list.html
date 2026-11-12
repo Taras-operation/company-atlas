@@ -27,24 +27,13 @@
 
 <!-- Tab: People -->
 <div id="tab-people" class="tab-content">
-  <div class="card">
-    {% set access_labels = {
-        'none':    'Без доступу',
-        'limited': 'Обмежений',
-        'full':    'Повний'
-    } %}
-    {% set scope_labels = {
-        'all':      'Всі',
-        'selected': 'Обрані',
-        'none':     'Жодного'
-    } %}
-    {% set grade_colors = {
-        'junior': 'badge-gray',
-        'middle': 'badge-blue',
-        'senior': 'badge-orange'
-    } %}
+  <div class="vis-toolbar">
+    <input type="text" id="vis-search" class="vis-search" placeholder="🔍 Пошук за ім'ям, посадою, відділом…">
+    <a class="btn btn-secondary" href="{{ url_for('roles.export_visibility_csv') }}">⬇ Експорт CSV</a>
+  </div>
 
-    <table class="table">
+  <div class="card vis-card">
+    <table class="table vis-table">
       <thead>
         <tr>
           <th>Людина</th>
@@ -57,43 +46,50 @@
           <th></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="vis-tbody">
         {% for person in people %}
-          <tr>
+          <tr class="vis-row"
+              data-person-id="{{ person.id }}"
+              data-search="{{ (person.full_name ~ ' ' ~ (person.position or '') ~ ' ' ~ (person.department.name if person.department else ''))|lower }}">
             <td>
               <strong>{{ person.full_name }}</strong><br>
               <span class="muted">{{ person.position or "—" }}</span>
             </td>
             <td>{{ person.department.name if person.department else "—" }}</td>
+
             <td>
-              <span class="badge {{ grade_colors.get(person.grade, 'badge-gray') }}">
-                {{ person.grade }}
-              </span>
+              <select class="vis-inline js-inline" data-field="grade">
+                {% for g in ['junior','middle','senior'] %}
+                  <option value="{{ g }}" {{ 'selected' if person.grade == g }}>{{ grade_labels.get(g, g) }}</option>
+                {% endfor %}
+              </select>
             </td>
+
             <td>
-              <span class="badge {{ 'badge-green' if person.department_card_access == 'full' else ('badge-blue' if person.department_card_access == 'limited' else 'badge-gray') }}">
-                {{ access_labels.get(person.department_card_access, person.department_card_access) }}
-              </span>
+              {% set cnt = namespace(n=0) %}
+              {% for f in card_toggle_fields %}{% if person|attr(f) %}{% set cnt.n = cnt.n + 1 %}{% endif %}{% endfor %}
+              <button type="button" class="card-pill js-open-modal"
+                      data-person-id="{{ person.id }}"
+                      data-person-name="{{ person.full_name }}"
+                      data-toggles='{% for f in card_toggle_fields %}{{ f }}:{{ 1 if person|attr(f) else 0 }}{{ ";" if not loop.last }}{% endfor %}'>
+                <span class="card-pill-count" data-role="card-count">{{ cnt.n }}</span>/{{ card_toggle_fields|length }}
+                <span class="card-pill-gear">⚙</span>
+              </button>
             </td>
+
+            {% for sf in ['brand_scope','geo_scope','department_scope'] %}
             <td>
-              <span class="badge {{ 'badge-gray' if person.brand_scope == 'all' else 'badge-blue' }}">
-                {{ scope_labels.get(person.brand_scope, person.brand_scope) }}
-              </span>
+              <select class="vis-inline js-inline" data-field="{{ sf }}"
+                      data-scope="{{ person[sf] }}">
+                <option value="all"      {{ 'selected' if person[sf] == 'all' }}>Всі</option>
+                <option value="selected" {{ 'selected' if person[sf] == 'selected' }}>Обрані</option>
+                <option value="none"     {{ 'selected' if person[sf] == 'none' }}>Жодного</option>
+              </select>
             </td>
-            <td>
-              <span class="badge {{ 'badge-gray' if person.geo_scope == 'all' else 'badge-blue' }}">
-                {{ scope_labels.get(person.geo_scope, person.geo_scope) }}
-              </span>
-            </td>
-            <td>
-              <span class="badge {{ 'badge-gray' if person.department_scope == 'all' else 'badge-blue' }}">
-                {{ scope_labels.get(person.department_scope, person.department_scope) }}
-              </span>
-            </td>
-            <td>
-              <a class="btn btn-secondary btn-sm" href="{{ url_for('people.edit_person', person_id=person.id) }}">
-                Редагувати
-              </a>
+            {% endfor %}
+
+            <td class="vis-actions">
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('people.edit_person', person_id=person.id) }}">Ред.</a>
             </td>
           </tr>
         {% else %}
@@ -101,6 +97,48 @@
         {% endfor %}
       </tbody>
     </table>
+    <div id="vis-empty" class="vis-empty" style="display:none;">Нічого не знайдено</div>
+  </div>
+</div>
+
+<!-- Quick-edit modal: card content toggles -->
+<div id="vis-modal" class="vis-modal-overlay" style="display:none;" onclick="closeVisModal(event)">
+  <div class="vis-modal" onclick="event.stopPropagation();">
+    <div class="vis-modal-head">
+      <div>
+        <strong id="vis-modal-title">Налаштування картки</strong>
+        <div class="muted" id="vis-modal-sub" style="font-size:13px;"></div>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeVisModal()">✕</button>
+    </div>
+
+    <div class="vis-modal-body">
+      <div class="vis-modal-bulk">
+        <button type="button" class="btn btn-secondary btn-sm" data-bulk="all">Позначити всі</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bulk="none">Зняти всі</button>
+      </div>
+      {% for group_label, fields in card_groups %}
+        <div class="vis-group">
+          <div class="vis-group-head">{{ group_label }}</div>
+          <div class="vis-group-grid">
+            {% for f in fields %}
+              <label class="vis-check">
+                <input type="checkbox" name="{{ f }}" class="js-modal-toggle">
+                <span>{{ field_labels.get(f, f) }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="vis-modal-foot">
+      <span id="vis-modal-status" class="muted" style="font-size:13px;"></span>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-secondary" onclick="closeVisModal()">Скасувати</button>
+        <button type="button" class="btn btn-primary" id="vis-modal-save">Зберегти</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -392,6 +430,111 @@
   cursor: pointer;
 }
 .req-selall input[type="checkbox"] { width: 16px; height: 16px; }
+
+/* ===== Visibility table (compact + inline) ===== */
+.vis-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.vis-search {
+  flex: 1;
+  max-width: 420px;
+  padding: 9px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.vis-card { padding: 6px 6px; }
+.vis-table { width: 100%; border-collapse: collapse; }
+.vis-table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6b7280;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+.vis-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f1f3f5;
+  vertical-align: middle;
+  font-size: 14px;
+}
+.vis-table tbody tr:hover { background: #f9fafb; }
+.vis-table td .muted { font-size: 12px; }
+
+.vis-inline {
+  padding: 5px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff;
+  cursor: pointer;
+  min-width: 92px;
+  transition: border-color .15s, background .15s;
+}
+.vis-inline:hover { border-color: #9ca3af; }
+.vis-inline.is-saving { opacity: .55; }
+.vis-inline.is-saved  { border-color: #22c55e; background: #f0fdf4; }
+.vis-inline.is-pending { border-color: #f59e0b; background: #fffbeb; }
+.vis-inline.is-error  { border-color: #ef4444; background: #fef2f2; }
+/* scope selects that aren't "all" get a subtle tint */
+.vis-inline[data-field$="_scope"][data-scope="selected"] { background:#eff6ff; border-color:#bfdbfe; }
+.vis-inline[data-field$="_scope"][data-scope="none"] { background:#f9fafb; color:#6b7280; }
+
+.card-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.card-pill:hover { background: #e0e7ff; }
+.card-pill-gear { font-size: 12px; opacity: .8; }
+.vis-actions { text-align: right; white-space: nowrap; }
+.vis-empty { padding: 30px; text-align: center; color: #9ca3af; }
+
+/* ===== Quick-edit modal ===== */
+.vis-modal-overlay {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(2,6,23,.55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.vis-modal {
+  width: min(680px, 96vw); max-height: 86vh; display: flex; flex-direction: column;
+  background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(2,6,23,.4);
+}
+.vis-modal-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 16px 20px; border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
+}
+.vis-modal-body { padding: 8px 20px 16px; overflow-y: auto; }
+.vis-modal-bulk { display: flex; gap: 8px; padding: 10px 0; position: sticky; top: 0; background:#fff; z-index:1; }
+.vis-group { margin-top: 10px; }
+.vis-group-head {
+  font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+  color: #374151; margin-bottom: 6px; border-bottom: 1px solid #f1f3f5; padding-bottom: 4px;
+}
+.vis-group-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+.vis-check {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 5px 6px;
+  border-radius: 8px; cursor: pointer;
+}
+.vis-check:hover { background: #f8fafc; }
+.vis-check input { width: 16px; height: 16px; flex-shrink: 0; }
+.vis-modal-foot {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 14px 20px; border-top: 1px solid #e5e7eb; flex-shrink: 0;
+}
+@media (max-width: 600px) { .vis-group-grid { grid-template-columns: 1fr; } }
 </style>
 
 <script>
@@ -418,6 +561,148 @@ document.addEventListener('DOMContentLoaded', function() {
   switchTab('requests');
 });
 {% endif %}
+
+// ===== Visibility: inline edits, modal, search =====
+(function () {
+  var IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+  var TOGGLE_FIELDS = {{ card_toggle_fields | tojson }};
+  var TOTAL = TOGGLE_FIELDS.length;
+
+  function quickUrl(id) { return '/roles/' + id + '/quick-update'; }
+
+  function post(id, body) {
+    return fetch(quickUrl(id), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }); });
+  }
+
+  // ---- Inline selects (grade / scopes) ----
+  document.querySelectorAll('.js-inline').forEach(function (sel) {
+    sel.dataset.prev = sel.value;
+    sel.addEventListener('change', function () {
+      var row = sel.closest('.vis-row');
+      var id = row.dataset.personId;
+      var field = sel.dataset.field;
+      var value = sel.value;
+      sel.classList.remove('is-saved', 'is-error', 'is-pending');
+      sel.classList.add('is-saving');
+      var body = 'mode=inline&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value);
+      post(id, body).then(function (res) {
+        sel.classList.remove('is-saving');
+        if (!res.ok || !res.data.ok) {
+          sel.classList.add('is-error');
+          sel.value = sel.dataset.prev; // revert
+          return;
+        }
+        if (res.data.pending) {
+          sel.classList.add('is-pending');
+          sel.value = sel.dataset.prev; // not applied yet — waiting for admin
+          alert('Зміна виходить за межі пресета грейду — відправлено адміну на погодження.');
+        } else {
+          sel.classList.add('is-saved');
+          sel.dataset.prev = value;
+          if (field.indexOf('_scope') > -1) sel.dataset.scope = value;
+          setTimeout(function () { sel.classList.remove('is-saved'); }, 1200);
+        }
+      }).catch(function () {
+        sel.classList.remove('is-saving');
+        sel.classList.add('is-error');
+        sel.value = sel.dataset.prev;
+      });
+    });
+  });
+
+  // ---- Modal ----
+  var modal = document.getElementById('vis-modal');
+  var modalTitle = document.getElementById('vis-modal-title');
+  var modalSub = document.getElementById('vis-modal-sub');
+  var modalStatus = document.getElementById('vis-modal-status');
+  var saveBtn = document.getElementById('vis-modal-save');
+  var currentBtn = null;
+
+  window.closeVisModal = function (e) {
+    if (e && e.target && e.target.id && e.target.id !== 'vis-modal') return;
+    modal.style.display = 'none';
+    currentBtn = null;
+  };
+
+  document.querySelectorAll('.js-open-modal').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      currentBtn = btn;
+      modalTitle.textContent = 'Що показувати у картці';
+      modalSub.textContent = btn.dataset.personName || '';
+      modalStatus.textContent = '';
+      // parse "field:1;field:0" into the checkboxes
+      var state = {};
+      (btn.dataset.toggles || '').split(';').forEach(function (pair) {
+        var kv = pair.split(':');
+        if (kv.length === 2) state[kv[0]] = kv[1] === '1';
+      });
+      document.querySelectorAll('.js-modal-toggle').forEach(function (cb) {
+        cb.checked = !!state[cb.name];
+      });
+      modal.style.display = 'flex';
+    });
+  });
+
+  document.querySelectorAll('.vis-modal-bulk [data-bulk]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var on = b.dataset.bulk === 'all';
+      document.querySelectorAll('.js-modal-toggle').forEach(function (cb) { cb.checked = on; });
+    });
+  });
+
+  saveBtn.addEventListener('click', function () {
+    if (!currentBtn) return;
+    var id = currentBtn.dataset.personId;
+    var parts = ['mode=card'];
+    document.querySelectorAll('.js-modal-toggle').forEach(function (cb) {
+      if (cb.checked) parts.push(encodeURIComponent(cb.name) + '=on');
+    });
+    saveBtn.disabled = true;
+    modalStatus.textContent = 'Збереження…';
+    post(id, parts.join('&')).then(function (res) {
+      saveBtn.disabled = false;
+      if (!res.ok || !res.data.ok) { modalStatus.textContent = 'Помилка збереження'; return; }
+      var st = res.data.state || {};
+      if (res.data.pending) {
+        modalStatus.textContent = 'Відправлено адміну на погодження';
+      } else {
+        // reflect new count on the pill + refresh its data-toggles from the saved state
+        var countEl = currentBtn.querySelector('[data-role="card-count"]');
+        if (countEl && typeof st.card_open === 'number') countEl.textContent = st.card_open;
+        if (st.toggles) {
+          currentBtn.dataset.toggles = TOGGLE_FIELDS.map(function (f) {
+            return f + ':' + (st.toggles[f] ? '1' : '0');
+          }).join(';');
+        }
+        modalStatus.textContent = 'Збережено ✓';
+        setTimeout(window.closeVisModal, 500);
+      }
+    }).catch(function () {
+      saveBtn.disabled = false;
+      modalStatus.textContent = 'Помилка мережі';
+    });
+  });
+
+  // ---- Search filter ----
+  var search = document.getElementById('vis-search');
+  var emptyMsg = document.getElementById('vis-empty');
+  if (search) {
+    search.addEventListener('input', function () {
+      var q = search.value.trim().toLowerCase();
+      var shown = 0;
+      document.querySelectorAll('#vis-tbody .vis-row').forEach(function (row) {
+        var match = !q || (row.dataset.search || '').indexOf(q) > -1;
+        row.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+      if (emptyMsg) emptyMsg.style.display = shown ? 'none' : 'block';
+    });
+  }
+})();
 </script>
 
 {% endblock %}

@@ -1,10 +1,22 @@
+import csv
+import io
 from datetime import datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    Response,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.models import (
+    Department,
     Person,
     PersonVisibilityBrand,
     PersonVisibilityDepartment,
@@ -14,9 +26,28 @@ from app.models import (
 from app.utils.audit import log_action
 from app.utils.access import get_accessible_department_ids, is_global_admin
 from app.utils.visibility import normalize_visibility
+from app.utils.grade_presets import PRESET_BOOL_FIELDS
 
 
 roles_bp = Blueprint("roles", __name__, url_prefix="/roles")
+
+
+# Scope fields the inline dropdowns can set (Всі / Обрані / Жодного).
+SCOPE_FIELDS = ("brand_scope", "geo_scope", "department_scope")
+
+# Grouped card toggles for the quick-edit modal and the CSV export.
+# (group label, [(field, short label), ...]) — labels come from VISIBILITY_FIELD_LABELS.
+CARD_GROUPS = [
+    ("Карта", ["map_access", "map_show_connections"]),
+    ("Контент картки", ["card_show_short_description", "card_show_full_description", "card_show_relations"]),
+    ("Відділ", [
+        "show_department_people_count", "show_department_leads", "show_department_lead_positions",
+        "show_department_people", "show_department_people_positions", "show_department_people_responsibility",
+        "show_department_email", "show_department_telegram", "show_department_chat_link",
+    ]),
+    ("Керівники", ["show_lead_contacts", "show_lead_email", "show_lead_telegram", "show_lead_reddy"]),
+    ("Люди", ["show_people_contacts", "show_people_email", "show_people_telegram", "show_people_reddy"]),
+]
 
 
 # Helper function to format visibility request changes for compact display
@@ -187,6 +218,189 @@ def list_roles():
         archived_count=archived_count,
         show_archived=show_archived,
         can_review_visibility_requests=is_global_admin(),
+        is_admin=is_global_admin(),
+        card_groups=CARD_GROUPS,
+        field_labels=VISIBILITY_FIELD_LABELS,
+        card_toggle_fields=PRESET_BOOL_FIELDS,
+        grade_labels=GRADE_LABELS,
+    )
+
+
+def _roles_can_access(person):
+    """Scoped-role access check for the visibility page (mirrors people._can_access_person)."""
+    accessible_ids = get_accessible_department_ids()
+    if accessible_ids is None:
+        return True
+    dept_id = person.department_id
+    if dept_id is None:
+        return False
+    try:
+        return int(dept_id) in accessible_ids
+    except (TypeError, ValueError):
+        return False
+
+
+def _card_open_count(person):
+    return sum(1 for f in PRESET_BOOL_FIELDS if getattr(person, f, False))
+
+
+def _person_visibility_state(person):
+    """Compact JSON view of a person's current visibility, for the inline UI."""
+    return {
+        "grade": person.grade,
+        "grade_label": GRADE_LABELS.get(person.grade, person.grade),
+        "brand_scope": person.brand_scope,
+        "geo_scope": person.geo_scope,
+        "department_scope": person.department_scope,
+        "card_open": _card_open_count(person),
+        "card_total": len(PRESET_BOOL_FIELDS),
+        "toggles": {f: bool(getattr(person, f, False)) for f in PRESET_BOOL_FIELDS},
+    }
+
+
+@roles_bp.route("/<int:person_id>/quick-update", methods=["POST"])
+@login_required
+def quick_update_visibility(person_id):
+    """Inline / modal visibility edit from the Видимість table.
+
+    mode=inline  → one coarse field (grade or a *_scope) from a row dropdown.
+    mode=card    → all card toggles submitted from the quick-edit modal.
+
+    Admins apply immediately. Scoped editors apply immediately too, unless the
+    change goes above the grade ceiling / widens scope — then it becomes a
+    pending request (same rule as the full edit form).
+    """
+    from app.routes.people import _needs_admin_approval
+
+    person = Person.query.get_or_404(person_id)
+    if not _roles_can_access(person):
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    mode = request.form.get("mode", "inline")
+    changed = {}
+
+    if mode == "card":
+        for field in PRESET_BOOL_FIELDS:
+            changed[field] = request.form.get(field) == "on"
+    else:
+        field = request.form.get("field")
+        value = request.form.get("value")
+        if field == "grade":
+            if value in GRADE_LABELS:
+                changed["grade"] = value
+        elif field in SCOPE_FIELDS:
+            if value in ("all", "selected", "none"):
+                changed[field] = value
+        else:
+            return jsonify({"ok": False, "error": "bad_field"}), 400
+
+    if not changed:
+        return jsonify({"ok": False, "error": "no_change"}), 400
+
+    before = _person_snapshot_for_audit(person)
+
+    if is_global_admin():
+        _assign(person, changed)
+        normalize_visibility(person)
+        db.session.commit()
+        log_action(
+            entity_type="person_visibility",
+            entity_id=person.id,
+            action="quick_update",
+            old_data=before,
+            new_data={k: _json_safe(getattr(person, k, None)) for k in changed},
+        )
+        db.session.commit()
+        return jsonify({"ok": True, "pending": False, "state": _person_visibility_state(person)})
+
+    # Scoped editor — gate through the approval rule.
+    if _needs_admin_approval(person, {"fields": changed}):
+        db.session.add(
+            VisibilityChangeRequest(
+                person_id=person.id,
+                requested_by_id=current_user.id,
+                payload={"fields": changed},
+                comment="Швидка зміна з таблиці видимості",
+            )
+        )
+        db.session.commit()
+        return jsonify({"ok": True, "pending": True, "state": _person_visibility_state(person)})
+
+    _assign(person, changed)
+    normalize_visibility(person)
+    db.session.commit()
+    return jsonify({"ok": True, "pending": False, "state": _person_visibility_state(person)})
+
+
+def _assign(person, changed):
+    for field, value in changed.items():
+        if hasattr(person, field):
+            setattr(person, field, value)
+
+
+def _json_safe(value):
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _person_snapshot_for_audit(person):
+    snap = {"grade": person.grade}
+    for f in SCOPE_FIELDS:
+        snap[f] = getattr(person, f, None)
+    for f in PRESET_BOOL_FIELDS:
+        snap[f] = bool(getattr(person, f, False))
+    return snap
+
+
+@roles_bp.route("/export.csv")
+@login_required
+def export_visibility_csv():
+    """Download everyone's effective visibility as a CSV, grouped by department."""
+    people_query = Person.query.filter_by(is_archived=False)
+    accessible_ids = get_accessible_department_ids()
+    if accessible_ids is not None:
+        people_query = people_query.filter(Person.department_id.in_(accessible_ids))
+
+    people = (
+        people_query
+        .outerjoin(Department, Person.department_id == Department.id)
+        .order_by(Department.name.asc(), Person.full_name.asc())
+        .all()
+    )
+
+    scope_labels = {"all": "Всі", "selected": "Обрані", "none": "Жодного"}
+
+    # Column order: context, then every card toggle grouped.
+    toggle_order = [f for _, fields in CARD_GROUPS for f in fields]
+
+    header = ["Відділ", "Людина", "Посада", "Grade",
+              "Бренди", "GEO", "Відділи (scope)"]
+    header += [VISIBILITY_FIELD_LABELS.get(f, f) for f in toggle_order]
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(header)
+
+    for p in people:
+        row = [
+            p.department.name if p.department else "—",
+            p.full_name,
+            p.position or "",
+            GRADE_LABELS.get(p.grade, p.grade or ""),
+            scope_labels.get(p.brand_scope, p.brand_scope or ""),
+            scope_labels.get(p.geo_scope, p.geo_scope or ""),
+            scope_labels.get(p.department_scope, p.department_scope or ""),
+        ]
+        row += ["Так" if getattr(p, f, False) else "Ні" for f in toggle_order]
+        writer.writerow(row)
+
+    csv_data = "﻿" + buf.getvalue()  # BOM so Excel reads UTF-8 correctly
+    filename = f"visibility_{datetime.utcnow():%Y%m%d}.csv"
+    return Response(
+        csv_data,
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
